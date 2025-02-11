@@ -10,7 +10,12 @@
 //long ptrace(enum __ptrace_request op, pid_t pid,void *addr, void *data);
 // TODO: Update this to take in an executable to trace like gdb does as a command line arg fed to the prog
 
-unsigned int getRegisterFromLookup(char *reg, struct user_regs_struct target_reg);
+unsigned long getRegisterFromLookup(char *reg, struct user_regs_struct target_reg);
+int findProcessPID(char * processName);
+void attachProcess(int pid);
+void detachProcess(int pid);
+struct user_regs_struct getProcessRegValues(int pid);
+void updateRegisterValues(struct user_regs_struct regs, int pid, unsigned long value);
 
 typedef struct {
     const char *name;
@@ -67,29 +72,19 @@ void detachProcess(int pid){
 
 }
 
-void getProcessRegValues(char *reg, int pid){
+struct user_regs_struct getProcessRegValues(int pid){
     
     struct user_regs_struct target_regs;
     ptrace(PTRACE_GETREGS, pid, NULL, &target_regs);
-    if (reg == NULL){
-        // get all reg values and print
-        printf("R8: %lx, R9: %lx, R10: %lx, R11: %lx, R12: %lx, R13: %lx, R14: %lx, R15: %lx\n", target_regs.r8, target_regs.r9, target_regs.r10, target_regs.r11, target_regs.r12, target_regs.r13, target_regs.r14, target_regs.r15);
-        printf("RSP: %lx, RBP: %lx, RDI: %lx, RSI: %lx, RDX: %lx, RCX: %lx, RBX: %lx, RAX: %lx\n", target_regs.rsp, target_regs.rbp, target_regs.rdi, target_regs.rsi, target_regs.rdx, target_regs.rcx, target_regs.rbx, target_regs.rax);
-    }
-    else{
-        // print single reg
-        int reg_val = getRegisterFromLookup(reg, target_regs);
-        if(reg_val){
-            printf("0x%lx\n", reg_val);
-        }
-        else{
-            printf("Register does not exist\n");
-        }
-    }
+
+    // get all reg values and print
+    printf("R8: %llx, R9: %llx, R10: %llx, R11: %llx, R12: %llx, R13: %llx, R14: %llx, R15: %llx\n", target_regs.r8, target_regs.r9, target_regs.r10, target_regs.r11, target_regs.r12, target_regs.r13, target_regs.r14, target_regs.r15);
+    printf("RSP: %llx, RBP: %llx, RDI: %llx, RSI: %llx, RDX: %llx, RCX: %llx, RBX: %llx, RAX: %llx\n", target_regs.rsp, target_regs.rbp, target_regs.rdi, target_regs.rsi, target_regs.rdx, target_regs.rcx, target_regs.rbx, target_regs.rax);
+    return target_regs;
     
 }
 
-unsigned int getRegisterFromLookup(char *reg, struct user_regs_struct target_reg){
+unsigned long getRegisterFromLookup(char *reg, struct user_regs_struct target_reg){
     unsigned int count = 0;
     while(strcmp(register_lookup[count].name, "NULL") != 0){
         if(strcmp(register_lookup[count].name, reg) == 0){
@@ -97,7 +92,7 @@ unsigned int getRegisterFromLookup(char *reg, struct user_regs_struct target_reg
         }
         count++;   
     }
-    return NULL; // probably not great practice since the return should be int
+    return -1; // probably not great practice since the return should be int
 }
 
 // remember, we can use registers to get the stack, so thats variables, return addresses, call stack etc
@@ -105,49 +100,18 @@ unsigned int getRegisterFromLookup(char *reg, struct user_regs_struct target_reg
     // we can use symbol resolution to map addresses to function names
     // we also can use this to get valid memory ranges so we dont segfault
 
-void updateRegisterValues(char *reg, unsigned int value){
-
+void updateRegisterValues(struct user_regs_struct regs, int pid, unsigned long value){
+    regs.r15 = value;
+    if(ptrace(PTRACE_SETREGS, pid, 0, &regs) < 0){
+        perror("PTRACE [SETREGS]");
+        exit(1);
+    }
 }
-
-void inspectMemory(unsigned int addr){
-
-}
-
-void setBreakPoint(unsigned int addr){
-    
-}
-
-void removeBreakPoint(){
-
-}
-
-void singleStepExecution(){
-
-}
-
-void resumeExecution(){
-
-}
-
-void signalHandle(){
-
-}
-
-void displayCallStack(){
-
-}
-
-void showDisassembly(){
-
-} 
-
-
-
 
 
 
 int main(){
-    int pid = findProcessPID("python");
+    int pid = findProcessPID("test_prog");
 
     if (pid < 0){
         perror("Bad PID");
@@ -159,7 +123,14 @@ int main(){
 
     attachProcess(pid);
 
-    getProcessRegValues("rdx", pid);
+    struct user_regs_struct target_regs = getProcessRegValues(pid);
+
+    unsigned long reg_val = getRegisterFromLookup("rsp", target_regs);
+
+    printf("%lx", reg_val);
+
+    updateRegisterValues(target_regs, pid, 999);
+
 
     detachProcess(pid);
 

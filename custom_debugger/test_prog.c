@@ -6,6 +6,7 @@ int test_var = 42;  // Global variable to inspect
 
 void allocate_memory() {
     int i = 0;
+    printf("%d", i);
     int *heap_var = (int *)malloc(sizeof(int));
     *heap_var = 1337;  // Assign value for debugging
     printf("Heap variable allocated at: %p\n", (void *)heap_var);

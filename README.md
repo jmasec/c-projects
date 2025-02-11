@@ -1,2 +1,7 @@
 # c-projects
-repository of c projects to get to an advanced level in C
+## Projects so far:
+- bin_file_parse : Parse a binary format like BMP. Unfinished.
+- strlib : string lib. Unfinished.
+    - error checking
+    - testing
+- custom_debugger : in process

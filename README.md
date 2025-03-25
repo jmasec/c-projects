@@ -5,3 +5,4 @@
     - error checking
     - testing
 - **custom_debugger** : in process
+- **mini VM** : just starting

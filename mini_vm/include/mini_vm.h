@@ -21,6 +21,13 @@
 #define R1 registers[1] 
 #define R0 registers[0]
 
+
+#define FLAG_N (1 << 31)
+#define FLAG_Z (1 << 30)
+#define FLAG_C (1 << 29)
+#define FLAG_V (1 << 28)
+
+
 typedef struct
 {
     uint32_t registers[NUM_REG];
@@ -28,5 +35,11 @@ typedef struct
     uint32_t CPSR;
     uint32_t current_instruction;
 } VMState;
+
+void init_registers(VMState *vms);
+VMState* init_vm();
+int run_vm();
+void update_control_register(VMState* vms, int32_t result, int negative_operand, int carried);
+void execute_instruction(const uint32_t curr_instruction, VMState* vms);
 
 #endif

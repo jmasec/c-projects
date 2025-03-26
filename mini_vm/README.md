@@ -1,3 +1,10 @@
 # MINI VM
-- 3 structs for the types of instructions (R-type, I-type, B-type)
-- check the 26-27 bits to find what type of instruction we are in
+- Update this README
+
+## Things I need to do
+- compile with no errors
+- Read in actual binary and parse for tests
+- Testing
+- Add asserts
+- Heap memory check for mem leaks, I want to build my own process for this
+    - malloc = if debug -> track

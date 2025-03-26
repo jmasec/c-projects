@@ -46,7 +46,7 @@ branch_t* build_branch_struct(uint32_t curr_instruction)
     branch_t* bp = (branch_t*)malloc(sizeof(branch_t));
     bp->cond                = (curr_instruction >> 28) & 0xF; // 4 bit
     bp->l                   = (curr_instruction >> 24) & 0x1; // 1 bit
-    bp->offset              = (curr_instruction >> 0) & 0x00FFFFFF; // 24 bit
+    bp->immediate              = (curr_instruction >> 0) & 0x00FFFFFF; // 24 bit
 
     return bp;
 }
@@ -94,10 +94,10 @@ uint32_t execute_and_instruction(data_processing_t* data_processing, uint32_t fi
     return exe_result;
 }
 
-uint32_t execute_sub_instruction(data_processing_t* data_processing, uint32_t first_op, uint32_t second_op)
+int32_t execute_sub_instruction(data_processing_t* data_processing, uint32_t first_op, uint32_t second_op)
 {
     uint32_t exe_result;
-    exe_result = first_op - second_op;
+    exe_result = (int32_t)(first_op - second_op);
 
     return exe_result;
 }
@@ -125,4 +125,23 @@ uint32_t execute_eor_instruction(data_processing_t* data_processing, uint32_t fi
 
     return exe_result;
 }
+
+int32_t execute_cmp_instruction(data_processing_t* data_processing, uint32_t first_op, uint32_t second_op)
+{
+    int32_t exe_result;
+    exe_result = (int32_t)(first_op - second_op);
+
+    return exe_result;
+}
+
+int32_t sign_extend_24bit(uint32_t imm24) {
+    if (imm24 & (1 << 23)) {
+        // If sign bit is 1, extend with 1s in the upper 8 bits
+        return imm24 | 0xFF000000;
+    } else {
+        // Sign bit is 0, just return it
+        return imm24;
+    }
+}
+
 

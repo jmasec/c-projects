@@ -70,9 +70,35 @@ int run_vm()
     }
 }
 
-void update_control_register()
-{
-    printf("Updated Control Reg or Not\n");
+void update_control_register(VMState* vms, int32_t result, int negative_operand, int carried)
+{   
+    printf("RESULT: %d\n", result);
+    if(result == 0)
+    {
+        vms->CPSR |= FLAG_Z;
+    }
+    else
+    {
+        vms->CPSR &= ~FLAG_Z;
+    }
+
+    if(result < 0)
+    {
+        vms->CPSR |= FLAG_N;
+        if (negative_operand)
+        {
+            vms->CPSR |= FLAG_V;
+        }
+    }
+    else
+    {
+        vms->CPSR &= ~FLAG_N;
+    }
+
+    if(carried)
+    {
+        vms->CPSR |= FLAG_C;
+    }
 }
 
 
@@ -89,7 +115,7 @@ void execute_instruction(const uint32_t curr_instruction, VMState* vms)
 
         uint32_t effective_op1 = vms->registers[dp->first_op_rn];
         uint32_t effective_op2;
-        uint8_t result;
+        uint32_t result;
         if (dp->is_immediate) 
         {
             effective_op2 = dp->second_op;
@@ -124,6 +150,21 @@ void execute_instruction(const uint32_t curr_instruction, VMState* vms)
                 printf("ADD Instruction\n");
                 result = execute_add_instruction(dp, effective_op1, effective_op2);
                 vms->registers[dp->destination_op_rd] = result;
+                break;
+            case 10: // CMP instruction
+                printf("CMP Instruction\n");
+                int is_negative;
+                int carried;
+                if((int32_t)effective_op1 < 0 || (int32_t)effective_op2 < 0)
+                {
+                    is_negative = 1;
+                }
+                if ((int32_t)effective_op1 >= (int32_t)effective_op2)
+                {
+                    carried = 1;
+                }
+                int32_t cmp_result = execute_cmp_instruction(dp, effective_op1, effective_op2);
+                update_control_register(vms, cmp_result, is_negative, carried);
                 break;
             case 12: // ORR
                 printf("ORR Instruction\n");
@@ -183,24 +224,66 @@ void execute_instruction(const uint32_t curr_instruction, VMState* vms)
     {
         branch_t* bp = build_branch_struct(curr_instruction);
 
+        bp->immediate = (sign_extend_24bit(bp->immediate) << 2)  + vms->PC;
+
+        // handle the imm24 shift, Target = PC + 8 + updated_immediate
+    
         // ok so we need to check what kind of jump maybe? with the cases
         // we just have the address to jump to
         // if L bit is set, then its BL branch, else we need to check the
         // condition to find out the type of branch
-        if (bp->l == 1)
-        {
-            // handle BL, do we want to make sure cond is 14?
-            // we have to branch and store the ret address
-        }
 
-        // B, BEQ, BNE
+        // B, BEQ, BNE, need to check CPSR to see if we execute as well
+        // BGE, BLT, BGT, need to set these branches up too
+        // EQ = Z set is equal
+        // NE = Z clear is not equal
+        // GE = N equals V is greater or equal
+        // LT = N not equal to V is greater or equal
+        // GT = Z clear AND (N equals V) greater than
+        // LE = Z set OR (N not equal to V) less than or equal
         switch(instr_type.opcode)
         {
             case 0: // BEQ
+                if((vms->CPSR >> 30)&0x1)
+                {
+                    // set PC
+                }
                 break;
             case 1: // BNE
+                if((vms->CPSR >> 30)&0x1)
+                {
+                    // set PC
+                }
                 break;
-            case 14: // B
+            case 10: // BGE
+                if((vms->CPSR >> 30)&0x1)
+                {
+                    // set PC
+                }
+                break;
+            case 11: // BLT
+                if((vms->CPSR >> 30)&0x1)
+                {
+                    // set PC
+                }
+                break;
+            case 12: // BGT
+                if((vms->CPSR >> 30)&0x1)
+                {
+                    // set PC
+                }
+                break;
+            case 13: // BLE
+                if((vms->CPSR >> 30)&0x1)
+                {
+                    // set PC
+                }
+                break;
+            case 14: // B or BL based on L bit
+                if((vms->CPSR >> 30)&0x1)
+                {
+                    // set PC
+                }
                 break;
             default:
                 printf("Unknown Instruction\n");
@@ -215,10 +298,15 @@ int main(int argc, char *argv[]) {
 
     VMState* vms = init_vm();
 
-    vms->R1 = 0x0;
-    vms->R0 = 0x1;
+    //vms->CPSR |= FLAG_Z;     // Set Zero
+    //vms->CPSR &= ~FLAG_Z;    // Clear Zero
+    //vms->CPSR & FLAG_Z;      // check
+    vms->R1 = 0x10;
+    vms->R2 = 0x1;
+    //vms->R0 = 0x1;
     //vms->R2 = 0x45;
-    uint32_t b = 0b11100101100000010000000000000100; // STR R0, [R1, #4]
+    uint32_t b = 0b11100001010100010000000000000010; // CMP R1, R2
+    //0b11100101100000010000000000000100; // STR R0, [R1, #4]
     //0b11100101100100010000000000000100; // LDR R0, [R1, #4]
     //0b11100010001000010000000000111100 EOR R0, R1, 0x3c
     //0b11100000001000010000000000000010 EOR R0, R1, R2
@@ -236,10 +324,12 @@ int main(int argc, char *argv[]) {
 
     execute_instruction(b, vms);
 
-    vms->R0 = 0x0;
-    uint32_t a = 0b11100101100100010000000000000100; // LDR R0, [R1, #4]
+    printf("FLAG V: %d, FLAG C: %d, FLAG Z: %d, FLAG N: %d\n", (vms->CPSR >> 28)&0x1, (vms->CPSR >> 29)&0x1, (vms->CPSR >> 30)&0x1, (vms->CPSR >> 31)&0x1);
 
-    execute_instruction(a, vms);
+    // vms->R0 = 0x0;
+    // uint32_t a = 0b11100101100100010000000000000100; // LDR R0, [R1, #4]
+
+    //execute_instruction(a, vms);
     
     printf("Free Memory\n");
     free(vms->memory);

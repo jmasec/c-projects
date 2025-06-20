@@ -101,3 +101,18 @@
 |  "# Documentation"               |
 +--------------------+
 ```
+```
+vfs_open("/docs/readme.txt")
+  │
+  └── path split → ["docs", "readme.txt"]
+        │
+        └── VFS starts at root inode
+              ↓
+        lookup("docs") via root_inode->fops->lookup()
+              ↓
+        lookup("readme.txt") via docs_inode->fops->lookup()
+              ↓
+        open() via readme_inode->fops->open()
+              ↓
+        return fd
+```

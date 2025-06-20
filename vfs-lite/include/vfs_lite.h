@@ -3,6 +3,7 @@
 
 #define MAX_FILE_PATH 4096
 #define MAX_OPEN_FILES 256
+#define MAX_MOUNTED_FILESYSTEMS 10
 #define MAX_DRIVERS 8
 
 #define MEMFS_PATH "mem"
@@ -19,7 +20,6 @@ typedef struct MountedFileSystem{
     const char* mount_path;
     inode* root;
     RegisteredDriver* driver; 
-    MountedFileSystem next_filesystem;
 } MountedFileSystem;
 
 // registered drivers on the system, hardcoded at this point
@@ -34,9 +34,11 @@ typedef struct file{
     int flags;
 }file;
 
-static struct file fd_table[MAX_OPEN_FILES];
-static struct RegisteredDriver driver_table[MAX_DRIVERS];
+static file fd_table[MAX_OPEN_FILES];
+static RegisteredDriver driver_table[MAX_DRIVERS];
+static MountedFileSystem* mount_table[MAX_MOUNTED_FILESYSTEMS];
 static int driver_count = 0;
+static int mount_count = 0;
 
 void vfs_register_driver(const char* name, struct FileSystemDriver* fsd);
 char *tokenize_path(char *);

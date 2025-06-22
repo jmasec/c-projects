@@ -36,9 +36,10 @@ typedef struct file{
 
 static file fd_table[MAX_OPEN_FILES];
 static RegisteredDriver driver_table[MAX_DRIVERS];
-static MountedFileSystem* mount_table[MAX_MOUNTED_FILESYSTEMS];
+static MountedFileSystem mount_table[MAX_MOUNTED_FILESYSTEMS];
 static int driver_count = 0;
 static int mount_count = 0;
+static int fd_count = 0;
 
 void vfs_register_driver(const char* name, struct FileSystemDriver* fsd);
 char *tokenize_path(char *);

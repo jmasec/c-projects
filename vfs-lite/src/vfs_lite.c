@@ -14,52 +14,54 @@ void vfs_register_driver(const char* name, struct FileSystemDriver* fsd) {
 }
 
 void vfs_mount(char* mount_path){
-    MountedFileSystem* mfs = malloc(sizeof(MountedFileSystem));
-
+    // parse for name in mount path to match name for driver, but really
+    // this is where we would need to read the blob at this mount path and
+    // firgure out the filesystem
+    // tokenize the file path
+    // grab the driver thats registered with a name thats in the path
+    // call the drivers mount
+    // set up mount_table[mount_count]
+    // inode we get from drivers mount, we got the driver, mount path
 }
 
 inode* vfs_lookup(char *path, inode* node){
+    // this func walks a file tree looking for a file/dir and returns the inode
+    // lookup for a inode is in it fops, so you need to keep using the next lookup
     // maybe recursion here
-    MountedFileSystem* mfs = NULL;
-    mfs = get_mounted_filesystem(path);
-
     // whats the base case
 
     // then we keep looking through inodes, call itself with recursion for the
     // next inode we find
+    // this is called within anywhere we need to find a file or directory for an
+    // operation
 }
 
 char *tokenize_path(char *){
-    // tokenize path
+    // tokenize path for mount, this would change into parsing blob to find
+    // filesystem type later
 }
 
 void vfs_open(char* path, int flags){
-    
+    // call vfs_lookup till I find the right file
+    // call the inode open I get back for that file
 }
 
 MountedFileSystem* get_mounted_filesystem(char *path){
-    MountedFileSystem* mfs;
-    if(mfs = find_prefix_mount(path) == NULL){
+    MountedFileSystem *mfs = find_prefix_mount(path);
+    if(mfs == NULL){
         printf("[-] No prefix was found, is this filesystem mounted?");
-        return NULL;
+        return;
     }
     return mfs;
 }
 
 MountedFileSystem* find_prefix_mount(char *path){
-    MountedFileSystem* mfs;
-
     for(int i = 0; i < mount_count; i ++){
-        if(strstr(mount_table[i]->mount_path, path) != NULL){
-            mfs = mount_table[i];
-            break;
+        if(strstr(mount_table[i].mount_path, path) != NULL){
+            return &mount_table[i];
         }
     }
-    return mfs;
-}
-
-char* find_valid_driver(char * path){
-    // find mem or ext2 in the path and return it 
+    return NULL;
 }
 
 

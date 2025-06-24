@@ -29,6 +29,7 @@ typedef struct RegisteredDriver{
 } RegisteredDriver;
 
 typedef struct file{
+    char* filename; 
     inode* node;
     size_t offset;
     int flags;
@@ -42,7 +43,14 @@ static int mount_count = 0;
 static int fd_count = 0;
 
 void vfs_register_driver(const char* name, struct FileSystemDriver* fsd);
+void vfs_mount(char* mount_path);
 char *tokenize_path(char *);
-void vfs_open(char* path, int flags);
+file* vfs_open(char* path, int flags);
+void vfs_close(char* path);
+
+/*
+For performance I want to implement a cache for inodes and filenames so
+that I dont have to parse from root all the time
+*/
 
 #endif /*VFS_LITE*/

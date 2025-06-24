@@ -23,6 +23,7 @@ typedef struct inode{
     unsigned int id;
     unsigned type;
     size_t size; 
+    int data_offset;
     struct FileSystemOps* fops;
 }inode;
 

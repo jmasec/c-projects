@@ -22,6 +22,7 @@ void vfs_mount(char* mount_path){
     // call the drivers mount
     // set up mount_table[mount_count]
     // inode we get from drivers mount, we got the driver, mount path
+    
 }
 
 inode* vfs_lookup(char *path, inode* node){
@@ -41,7 +42,7 @@ char *tokenize_path(char *){
     // filesystem type later
 }
 
-void vfs_open(char* path, int flags){
+file* vfs_open(char* path, int flags){
     // call vfs_lookup till I find the right file
     // call the inode open I get back for that file
 }

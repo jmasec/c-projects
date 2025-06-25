@@ -15,17 +15,18 @@
 // registered drivers on the system, hardcoded at this point
 typedef struct RegisteredDriver{
     char name[16];
+    int magic_bytes;
     struct FileSystemDriver* fsd;
 } RegisteredDriver;
 
 typedef struct MountedFileSystem{
-    const char* mount_path;
+    char mount_path[64];
     inode* root;
     RegisteredDriver* driver; 
 } MountedFileSystem;
 
 typedef struct file{
-    char* filename; 
+    char filename[64]; 
     inode* node;
     size_t offset;
     int flags;
@@ -40,7 +41,7 @@ extern int mount_count;
 extern int fd_count;
 
 void vfs_register_driver(const char* name, struct FileSystemDriver* fsd);
-void vfs_mount(char* mount_path);
+int vfs_mount(char* mount_path, char* fs_name, void* blob);
 char *tokenize_path(char *);
 file* vfs_open(char* path, int flags);
 MountedFileSystem* find_prefix_mount(char *path);

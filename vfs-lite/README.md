@@ -116,3 +116,17 @@ vfs_open("/docs/readme.txt")
               ↓
         return fd
 ```
+
+You call VFS mount:
+vfs_mount("/mnt/cramfs", "cramfs", blob);
+VFS looks up the driver by name from driver_table
+
+Gets the corresponding FileSystemDriver*
+
+VFS calls driver’s .mount(blob) function
+
+The driver parses the blob and returns the root inode
+
+VFS adds this to its mount_table
+
+Stores: mount path (/mnt/cramfs), driver pointer, and root inode

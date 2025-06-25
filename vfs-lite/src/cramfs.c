@@ -3,9 +3,9 @@
 #include <string.h>
 #include "cramfs.h"
 
-inode* cramfs_mount(void*){
-    inode* node = malloc(sizeof(inode));
-    return node;
+inode* cramfs_mount(void*blob){
+    cramfs_parse_blob(blob); // tree is made now
+    return; // return first node of the tree root inode
 }
 
 void cramfs_unmount(inode*){
@@ -118,7 +118,8 @@ void* cramfs_build_blob(){
 }
 
 void cramfs_parse_blob(void* blob){
-    SuperBlock* sb = (SuperBlock*)malloc(sizeof(SuperBlock));
+    // parse into a tree
+    return;
 }
 
 

@@ -23,7 +23,7 @@ typedef struct inode{
     unsigned int id;
     unsigned type; // dir or file
     size_t size; 
-    int data_offset;
+    int data_offset; // data offset into the blob
     char* path;
     struct FileOps* fops;
 }inode;

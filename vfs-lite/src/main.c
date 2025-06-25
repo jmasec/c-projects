@@ -1,7 +1,7 @@
 #include <stdio.h>    
 #include <stdlib.h> 
 #include <string.h>
-#include "vfs_lite.h"
+#include "include/vfs_lite.h"
 #include "cramfs.h"
 
 int main(){
@@ -14,6 +14,6 @@ int main(){
 
     void* blob = cramfs_build_blob();
 
-    vfs_mount("/");
+    vfs_mount("/mnt/cramfs", "cramfs", blob);
 
 }

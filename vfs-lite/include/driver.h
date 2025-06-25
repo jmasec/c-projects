@@ -21,10 +21,11 @@ typedef struct FileOps {
 
 typedef struct inode{
     unsigned int id;
-    unsigned type;
+    unsigned type; // dir or file
     size_t size; 
     int data_offset;
-    struct FileSystemOps* fops;
+    char* path;
+    struct FileOps* fops;
 }inode;
 
 #endif /*DRIVER*/

@@ -10,11 +10,14 @@ inode* cramfs_mount(void*blob){
 
 void cramfs_parse_blob(void* blob){
     SuperBlock* sb = malloc(sizeof(SuperBlock));
-    void* read_ptr = blob;
+    char* read_ptr = blob;
+    char* inode_table_ptr = NULL;
+    char* dirent_table_ptr = NULL;
+    char* data_block_ptr = NULL;
 
     sb->magic_num = *(int*)read_ptr;
     read_ptr+= sizeof(int);
-    sb->size = *(size_t*)read_ptr;
+    sb->blob_size = *(size_t*)read_ptr;
     read_ptr+= sizeof(size_t);
     sb->inode_table_offset = *(size_t*)read_ptr;
     read_ptr+= sizeof(size_t);
@@ -22,12 +25,45 @@ void cramfs_parse_blob(void* blob){
     read_ptr+= sizeof(size_t);
     sb->num_inodes = *(size_t*)read_ptr;
     read_ptr+= sizeof(size_t);
+    sb->start_data_block_offset = *(size_t*)read_ptr;
 
-    read_ptr += sb->inode_table_offset;
     printf("MAGIC NUM: %x\n", sb->magic_num);
-    printf("size: %i\n", sb->size);
-    printf("offset: %i\n", sb->inode_table_offset);
-    printf("ID: %i\n", *(size_t*)read_ptr);
+    printf("size: %i\n", sb->blob_size);
+
+    inode_table_ptr = (char*)blob + sb->inode_table_offset;
+    dirent_table_ptr = (char*)blob + sb->dirent_table_offset;
+    data_block_ptr = (char*)blob + sb->start_data_block_offset;
+    char* tmp = NULL;
+
+    // later maybe build a hash or lookup table for my tree for faster lookup
+    do{
+        int node = *(int*)dirent_table_ptr; // get node for that dirent
+        // loop through the number of inodes to make nodes
+        // FileSystemTreeNode inode build for number node which we grab using
+        // inode table pointer
+        // parent->children = malloc(sizeof(FileSystemTreeNode*) * dirent->num_nodes);
+        // then go into loop and setup the children
+        // how do we handle the next dirent?
+        for(int i = 0; i < (*(int*)dirent_table_ptr + sizeof(int)); i ++){
+            tmp = inode_table_ptr + (sizeof(blob_inode)*i); // get inode num
+        }
+        
+        int dirent_size = sizeof(int) + sizeof(int) + (sizeof(int)*(*(int*)dirent_table_ptr + sizeof(int)));
+        dirent_table_ptr += dirent_size; // push to next dirent
+    }while (dirent_table_ptr != data_block_ptr); // are we out of dirents?
+
+
+    // printf("ptr: %x\n", inode_table_ptr);
+    // printf("inode table offset: %i\n", sb->inode_table_offset);
+    // printf("id: %i\n", *(size_t*)inode_table_ptr);
+    // inode_table_ptr += sizeof(size_t);
+    // printf("type: %i\n", *(size_t*)inode_table_ptr);
+    // inode_table_ptr += sizeof(size_t);
+    // printf("size: %i\n", *(size_t*)inode_table_ptr);
+    // inode_table_ptr += sizeof(size_t);
+    // printf("data offset: %i\n", *(size_t*)inode_table_ptr);
+    // inode_table_ptr += sizeof(size_t);
+    // printf("path: %s\n", (char*)inode_table_ptr);
 }
 
 
@@ -45,7 +81,8 @@ void* cramfs_build_blob(){
     sb->num_inodes = 4;
     sb->inode_table_offset = sizeof(SuperBlock);
     sb->dirent_table_offset = sizeof(SuperBlock) + sizeof(blob_inode);
-    sb->size = sizeof(SuperBlock) + (sizeof(blob_inode) * 4) + (sizeof(Dirent)*2) + (sizeof(FileData)*2);
+    sb->blob_size = sizeof(SuperBlock) + (sizeof(blob_inode) * 4) + (sizeof(Dirent)*2) + (sizeof(FileData)*2);
+    sb->start_data_block_offset = sizeof(SuperBlock) + (sizeof(blob_inode) * 4) + (sizeof(Dirent)*2);
 
     memcpy(write_ptr, sb, sizeof(SuperBlock));
  
@@ -53,7 +90,7 @@ void* cramfs_build_blob(){
 
     blob_inode_table[0].id = 0;
     blob_inode_table[0].type = DIR;
-    blob_inode_table[0].size = 0;
+    blob_inode_table[0].data_size = 0;
     blob_inode_table[0].data_offset = 0;
     snprintf(blob_inode_table[0].path, MAX_FILE_PATH, "%s", "/");
 
@@ -62,7 +99,7 @@ void* cramfs_build_blob(){
 
     blob_inode_table[1].id = 1;
     blob_inode_table[1].type = FILE;
-    blob_inode_table[1].size = 13;
+    blob_inode_table[1].data_size = 13;
     blob_inode_table[1].data_offset = 0;
     snprintf(blob_inode_table[1].path, MAX_FILE_PATH, "%s", "/hello.txt");
 
@@ -71,7 +108,7 @@ void* cramfs_build_blob(){
 
     blob_inode_table[2].id = 0;
     blob_inode_table[2].type = DIR;
-    blob_inode_table[2].size = 0;
+    blob_inode_table[2].data_size = 0;
     blob_inode_table[2].data_offset = 0;
     snprintf(blob_inode_table[2].path, MAX_FILE_PATH, "%s", "/docs");
 
@@ -80,7 +117,7 @@ void* cramfs_build_blob(){
 
     blob_inode_table[3].id = 1;
     blob_inode_table[3].type = FILE;
-    blob_inode_table[3].size = 15;
+    blob_inode_table[3].data_size = 15;
     blob_inode_table[3].data_offset = 0;
     snprintf(blob_inode_table[3].path, MAX_FILE_PATH, "%s", "/docs/readme.md");
 
@@ -88,6 +125,7 @@ void* cramfs_build_blob(){
     write_ptr += sizeof(blob_inode);
 
     Dirent* d1 = (Dirent*)malloc(sizeof(Dirent));
+    d1->node = 0;
     d1->num_inodes = 2;
     d1->inodes[0] = 2;
     d1->inodes[1] = 1;
@@ -96,6 +134,7 @@ void* cramfs_build_blob(){
     write_ptr += sizeof(Dirent);
 
     Dirent* d2 = (Dirent*)malloc(sizeof(Dirent));
+    d1->node = 1;
     d1->num_inodes = 1;
     d1->inodes[0] = 3;
 

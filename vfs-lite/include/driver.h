@@ -8,7 +8,7 @@
 
 #define MAX_FILE_PATH 20
 
-typedef struct __attribute__((packed)) inode{
+typedef struct inode{
     size_t id;
     size_t type; // dir or file
     size_t size; 

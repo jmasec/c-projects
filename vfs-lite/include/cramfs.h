@@ -12,7 +12,7 @@
 #define DIR 0
 #define FILE 1
 
-typedef struct FileSystemTree FileSystemTree;
+typedef struct FileSystemTreeNode FileSystemTreeNode;
 
 extern void cramfs_register(); // fill out the 
 extern void* cramfs_build_blob(); // this would not be here, the blob would be given already
@@ -25,10 +25,11 @@ extern void cramfs_parse_blob(void*); // this will called within mount, just par
 inode* cramfs_mount(void*);
 void cramfs_unmount(inode*);
 
-typedef struct FileSystemTree{
-    inode * node; // inode 0 lets say
-    FileSystemTree* children; // children docs and hello.txt
-} FileSystemTree;
+typedef struct FileSystemTreeNode{
+    inode *node; // inode 0 lets say
+    size_t num_children;
+    FileSystemTreeNode** children; // children docs and hello.txt
+} FileSystemTreeNode;
 
 // define global for tree structure, any other structs I need
 
@@ -48,7 +49,7 @@ static FileOps cramfs_ops = {
 typedef struct __attribute__((packed)) blob_inode{
     size_t id;
     size_t type; // dir or file
-    size_t size; 
+    size_t data_size; 
     size_t data_offset; // data offset into the blob
     char path[MAX_FILE_PATH];
 }blob_inode;
@@ -57,16 +58,18 @@ typedef struct __attribute__((packed)) blob_inode{
 static blob_inode blob_inode_table[NUM_INODES]; // chapters
 
 typedef struct __attribute__((packed)) Dirent{ // index of names
+    int node;
     int num_inodes;
     int inodes[2];
 } Dirent;
 
 typedef struct __attribute__((packed)) SuperBlock{ // table of contents
     int magic_num;
-    size_t size;
+    size_t blob_size;
     size_t inode_table_offset;
     size_t dirent_table_offset;
     size_t num_inodes;
+    size_t start_data_block_offset;
 }SuperBlock;
 
 typedef struct __attribute__((packed)) FileData{
@@ -74,7 +77,5 @@ typedef struct __attribute__((packed)) FileData{
     size_t offset;
     size_t size;
 }FileData;
-
-
 
 #endif /*CRAMFS*/

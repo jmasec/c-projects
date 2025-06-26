@@ -8,9 +8,28 @@ inode* cramfs_mount(void*blob){
     return; // return first node of the tree root inode
 }
 
-void cramfs_unmount(inode*){
-    return;
+void cramfs_parse_blob(void* blob){
+    SuperBlock* sb = malloc(sizeof(SuperBlock));
+    void* read_ptr = blob;
+
+    sb->magic_num = *(int*)read_ptr;
+    read_ptr+= sizeof(int);
+    sb->size = *(size_t*)read_ptr;
+    read_ptr+= sizeof(size_t);
+    sb->inode_table_offset = *(size_t*)read_ptr;
+    read_ptr+= sizeof(size_t);
+    sb->dirent_table_offset = *(size_t*)read_ptr;
+    read_ptr+= sizeof(size_t);
+    sb->num_inodes = *(size_t*)read_ptr;
+    read_ptr+= sizeof(size_t);
+
+    read_ptr += sb->inode_table_offset;
+    printf("MAGIC NUM: %x\n", sb->magic_num);
+    printf("size: %i\n", sb->size);
+    printf("offset: %i\n", sb->inode_table_offset);
+    printf("ID: %i\n", *(size_t*)read_ptr);
 }
+
 
 void cramfs_register(){    
     vfs_register_driver(DRIVER_NAME, &cramfs_fsd);
@@ -25,66 +44,62 @@ void* cramfs_build_blob(){
     sb->magic_num = 0xFEF;
     sb->num_inodes = 4;
     sb->inode_table_offset = sizeof(SuperBlock);
-    sb->dirent_table_offset = sizeof(SuperBlock) + sizeof(inode_table);
-    sb->size = sizeof(SuperBlock) + (sizeof(inode) * 4) + (sizeof(Dirent)*2) + (sizeof(FileData)*2);
+    sb->dirent_table_offset = sizeof(SuperBlock) + sizeof(blob_inode);
+    sb->size = sizeof(SuperBlock) + (sizeof(blob_inode) * 4) + (sizeof(Dirent)*2) + (sizeof(FileData)*2);
 
-    memcpy(write_ptr, &sb, sizeof(SuperBlock));
+    memcpy(write_ptr, sb, sizeof(SuperBlock));
  
     write_ptr += sizeof(SuperBlock); // increment pointer
 
-    inode_table[0].fops = &cramfs_ops;
-    inode_table[0].id = 0;
-    inode_table[0].type = DIR;
-    inode_table[0].size = 0;
-    inode_table[0].data_offset = 0;
-    inode_table[0].path = "/";
+    blob_inode_table[0].id = 0;
+    blob_inode_table[0].type = DIR;
+    blob_inode_table[0].size = 0;
+    blob_inode_table[0].data_offset = 0;
+    snprintf(blob_inode_table[0].path, MAX_FILE_PATH, "%s", "/");
 
-    memcpy(write_ptr, &inode_table[0], sizeof(inode));
-    write_ptr += sizeof(inode);
+    memcpy(write_ptr, &blob_inode_table[0], sizeof(blob_inode));
+    write_ptr += sizeof(blob_inode);
 
-    inode_table[1].fops = &cramfs_ops;
-    inode_table[1].id = 1;
-    inode_table[1].type = FILE;
-    inode_table[1].size = 13;
-    inode_table[1].data_offset = 0;
-    inode_table[1].path = "/hello.txt";
+    blob_inode_table[1].id = 1;
+    blob_inode_table[1].type = FILE;
+    blob_inode_table[1].size = 13;
+    blob_inode_table[1].data_offset = 0;
+    snprintf(blob_inode_table[1].path, MAX_FILE_PATH, "%s", "/hello.txt");
 
-    memcpy(write_ptr, &inode_table[1], sizeof(inode));
-    write_ptr += sizeof(inode);
+    memcpy(write_ptr, &blob_inode_table[1], sizeof(blob_inode));
+    write_ptr += sizeof(blob_inode);
 
-    inode_table[2].fops = &cramfs_ops;
-    inode_table[2].id = 0;
-    inode_table[2].type = DIR;
-    inode_table[2].size = 0;
-    inode_table[2].data_offset = 0;
-    inode_table[2].path = "/docs";
+    blob_inode_table[2].id = 0;
+    blob_inode_table[2].type = DIR;
+    blob_inode_table[2].size = 0;
+    blob_inode_table[2].data_offset = 0;
+    snprintf(blob_inode_table[2].path, MAX_FILE_PATH, "%s", "/docs");
 
-    memcpy(write_ptr, &inode_table[2], sizeof(inode));
-    write_ptr += sizeof(inode);
+    memcpy(write_ptr, &blob_inode_table[2], sizeof(blob_inode));
+    write_ptr += sizeof(blob_inode);
 
-    inode_table[3].fops = &cramfs_ops;
-    inode_table[3].id = 1;
-    inode_table[3].type = FILE;
-    inode_table[3].size = 15;
-    inode_table[3].data_offset = 0;
-    inode_table[3].path = "/docs/readme.md";
+    blob_inode_table[3].id = 1;
+    blob_inode_table[3].type = FILE;
+    blob_inode_table[3].size = 15;
+    blob_inode_table[3].data_offset = 0;
+    snprintf(blob_inode_table[3].path, MAX_FILE_PATH, "%s", "/docs/readme.md");
 
-    memcpy(write_ptr, &inode_table[3], sizeof(inode));
-    write_ptr += sizeof(inode);
+    memcpy(write_ptr, &blob_inode_table[3], sizeof(blob_inode));
+    write_ptr += sizeof(blob_inode);
 
     Dirent* d1 = (Dirent*)malloc(sizeof(Dirent));
     d1->num_inodes = 2;
     d1->inodes[0] = 2;
     d1->inodes[1] = 1;
 
-    memcpy(write_ptr, &d1, sizeof(Dirent));
+    memcpy(write_ptr, d1, sizeof(Dirent));
     write_ptr += sizeof(Dirent);
 
     Dirent* d2 = (Dirent*)malloc(sizeof(Dirent));
     d1->num_inodes = 1;
     d1->inodes[0] = 3;
 
-    memcpy(write_ptr, &d2, sizeof(Dirent));
+    memcpy(write_ptr, d2, sizeof(Dirent));
     write_ptr += sizeof(Dirent);
 
     FileData* fd = (FileData*)malloc(sizeof(FileData));
@@ -92,8 +107,9 @@ void* cramfs_build_blob(){
 
     fd->inode_num = 2;
     fd->offset = (size_t)((write_ptr-blob) + sizeof(FileData));
+    fd->size = 13;
 
-    memcpy(write_ptr, &fd, sizeof(FileData));
+    memcpy(write_ptr, fd, sizeof(FileData));
     write_ptr += sizeof(FileData);
 
     memcpy(write_ptr, "Hello, world!", 13);
@@ -101,8 +117,9 @@ void* cramfs_build_blob(){
 
     fd2->inode_num = 3;
     fd2->offset = (size_t)((write_ptr-blob) + sizeof(FileData));
+    fd2->size = 15;
 
-    memcpy(write_ptr, &fd2, sizeof(FileData));
+    memcpy(write_ptr, fd2, sizeof(FileData));
     write_ptr += sizeof(FileData);
 
     memcpy(write_ptr, "# Documentation", 15);
@@ -115,11 +132,6 @@ void* cramfs_build_blob(){
     free(fd2);
 
     return blob;
-}
-
-void cramfs_parse_blob(void* blob){
-    // parse into a tree
-    return;
 }
 
 

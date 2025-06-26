@@ -3,6 +3,7 @@
         "string.h": "c",
         "vfs_lite.h": "c",
         "stdio.h": "c",
-        "driver.h": "c"
+        "driver.h": "c",
+        "typeinfo": "c"
     }
 }

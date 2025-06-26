@@ -12,6 +12,8 @@
 #define DIR 0
 #define FILE 1
 
+typedef struct FileSystemTree FileSystemTree;
+
 extern void cramfs_register(); // fill out the 
 extern void* cramfs_build_blob(); // this would not be here, the blob would be given already
 extern void cramfs_parse_blob(void*); // this will called within mount, just parsing blob into structs but still referencing the blob for actual data
@@ -20,7 +22,7 @@ extern void cramfs_parse_blob(void*); // this will called within mount, just par
 // void cramfs_close();
 // void cramfs_read();
 // void cramfs_lookup();
-inode* cramfs_mount(void*); // return the root inode
+inode* cramfs_mount(void*);
 void cramfs_unmount(inode*);
 
 typedef struct FileSystemTree{
@@ -32,7 +34,7 @@ typedef struct FileSystemTree{
 
 static FileSystemDriver cramfs_fsd = {
     .mount = cramfs_mount,
-    .unmount = cramfs_unmount,
+    .unmount = NULL,
 };
 
 static FileOps cramfs_ops = {
@@ -43,26 +45,36 @@ static FileOps cramfs_ops = {
     .close = NULL
 };
 
-// these are all for building the blob, not really needed here
-static inode inode_table[NUM_INODES]; // chapters
+typedef struct __attribute__((packed)) blob_inode{
+    size_t id;
+    size_t type; // dir or file
+    size_t size; 
+    size_t data_offset; // data offset into the blob
+    char path[MAX_FILE_PATH];
+}blob_inode;
 
-typedef struct Dirent{ // index of names
+// these are all for building the blob, not really needed here
+static blob_inode blob_inode_table[NUM_INODES]; // chapters
+
+typedef struct __attribute__((packed)) Dirent{ // index of names
     int num_inodes;
     int inodes[2];
 } Dirent;
 
-typedef struct SuperBlock{ // table of contents
+typedef struct __attribute__((packed)) SuperBlock{ // table of contents
     int magic_num;
     size_t size;
-    int inode_table_offset;
-    int dirent_table_offset;
-    int num_inodes;
+    size_t inode_table_offset;
+    size_t dirent_table_offset;
+    size_t num_inodes;
 }SuperBlock;
 
-typedef struct FileData{
+typedef struct __attribute__((packed)) FileData{
     int inode_num;
     size_t offset;
+    size_t size;
 }FileData;
+
 
 
 #endif /*CRAMFS*/

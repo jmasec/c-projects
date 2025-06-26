@@ -1,7 +1,7 @@
 #include <stdio.h>    
 #include <stdlib.h> 
 #include <string.h>
-#include "include/vfs_lite.h" 
+#include "vfs_lite.h" 
 
 file fd_table[MAX_OPEN_FILES];
 RegisteredDriver driver_table[MAX_DRIVERS];
@@ -10,6 +10,20 @@ MountedFileSystem mount_table[MAX_MOUNTED_FILESYSTEMS];
 int driver_count = 0;
 int mount_count = 0;
 int fd_count = 0;
+
+int vfs_read(file* fd, void* buf, size_t size){
+    int ret;
+    if(fd->node->size < size){
+        ret = fd->node->fops->read(fd, buf, fd->node->size);
+    }
+    else{
+        ret = fd->node->fops->read(fd, buf, size);
+    }
+    if (ret > 0){
+        fd->file_postion = ret; // how much would of been read
+    }
+    return ret;
+}
 
 // drivers can call this, and it fills the vfs array of registered drivers in the vfs.h file
 // have to call extern func from drivers to send back the mount and unmount functions
@@ -21,12 +35,12 @@ void vfs_register_driver(const char* name, struct FileSystemDriver* fsd) {
     }
 }
 
-int vfs_mount(char* mount_path, char* fs_name, void* blob){
+void vfs_mount(char* mount_path, char* fs_name, void* blob){
    // find driver
    RegisteredDriver* reg_driver = get_driver(fs_name);
    if (reg_driver == NULL){
         printf("[-] Driver for this filesystem is not registered yet!");
-        return -1;
+        return;
    }
 
    if(mount_count < MAX_MOUNTED_FILESYSTEMS){
@@ -37,8 +51,6 @@ int vfs_mount(char* mount_path, char* fs_name, void* blob){
         mount_table[mount_count].root = root_node;
         mount_count++;
    }
-
-   
 }
 
 RegisteredDriver* get_driver(char* fs_name){
@@ -50,34 +62,12 @@ RegisteredDriver* get_driver(char* fs_name){
    return NULL;
 }
 
-inode* vfs_lookup(char *path, inode* node){
-    // this func walks a file tree looking for a file/dir and returns the inode
-    // lookup for a inode is in it fops, so you need to keep using the next lookup
-    // maybe recursion here
-    // whats the base case
-
-    // then we keep looking through inodes, call itself with recursion for the
-    // next inode we find
-    // this is called within anywhere we need to find a file or directory for an
-    // operation
-}
-
-char *tokenize_path(char *path){
-    // tokenize path for mount, this would change into parsing blob to find
-    // filesystem type later
-    char* token = strtok(path, "/");
-
-    return token;
-}
-
 file* vfs_open(char* path, int flags){
     // call vfs_lookup till I find the right file
     // call the inode open I get back for that file
-
-    // tokenize
-    char* token = tokenize_path(path);
-
     int fs_index = -1;
+    inode* node = NULL;
+
     // find fs type
     for(int i = 0; i < mount_count; i++){
         if(strstr(mount_table[i].mount_path, path) != NULL){
@@ -90,7 +80,29 @@ file* vfs_open(char* path, int flags){
         return NULL;
     }
 
-    // mount_table[fs_index].root->fops->lookup();
+    char* token = strtok(path, DELIMINATOR);
+
+    node = mount_table[fs_index].root->fops->lookup(node, token);
+
+    token = strtok(NULL, DELIMINATOR);
+    
+    while (token != NULL){
+        node = node->fops->lookup(node,token);
+        token = strtok(NULL, DELIMINATOR);
+    }
+
+    file* fd = NULL;
+    if(fd_count < MAX_OPEN_FILES){
+        fd = node->fops->open(node,flags);
+        if (fd == NULL){
+            printf("[-] Failed to open the file, driver open died");
+            return NULL;
+        }
+        fd_table[fd_count] = *fd;
+        fd_count++;
+    }
+
+    return fd;
 }
 
 MountedFileSystem* get_mounted_filesystem(char *path){

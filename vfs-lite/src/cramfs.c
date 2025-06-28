@@ -3,6 +3,8 @@
 #include <string.h>
 #include "cramfs.h"
 
+FileSystemTreeNode* root = NULL;
+
 inode* cramfs_mount(void*blob){
     cramfs_parse_blob(blob); // tree is made now
     return; // return first node of the tree root inode
@@ -36,11 +38,23 @@ void cramfs_parse_blob(void* blob){
     dirent_table_ptr = (char*)blob + sb->dirent_table_offset;
     data_block_ptr = (char*)blob + sb->start_data_block_offset;
     char* tmp = NULL;
-    FileSystemTreeNode* ftn = malloc(sizeof(FileSystemTreeNode));
+
+
     // // later maybe build a hash or lookup table for my tree for faster lookup
     do{
-        int node = *(size_t*)dirent_table_ptr; // get node for that dirent
-        char* tmp_node = inode_table_ptr + sizeof(blob_inode)*node;
+        size_t node_id = *(size_t*)dirent_table_ptr; // get node for that dirent
+        char* tmp_node = inode_table_ptr + sizeof(blob_inode)*node_id; // grab node
+        FileSystemTreeNode* tmp_tree_node;
+
+        if(root != NULL){
+            tmp_tree_node = root;
+            tmp_tree_node = find_parent(tmp_tree_node, node_id);
+        }
+        else{
+            tmp_tree_node = malloc(sizeof(FileSystemTreeNode));
+            root = tmp_tree_node;
+        }
+
         // built root inode
         inode* r_node = malloc(sizeof(inode));
         r_node->id = *(size_t*)tmp_node;
@@ -54,9 +68,9 @@ void cramfs_parse_blob(void* blob){
         snprintf(r_node->path, MAX_FILE_PATH, "%s", *(char*)tmp_node);
         r_node->fops = &cramfs_ops;
 
-        ftn->node = r_node;
-        ftn->num_children = (*(size_t*)dirent_table_ptr + sizeof(size_t));
-        ftn->children = malloc(sizeof(FileSystemTreeNode*) * ftn->num_children);
+        tmp_tree_node->node = r_node;
+        tmp_tree_node->num_children = (*(size_t*)dirent_table_ptr + sizeof(size_t));
+        tmp_tree_node->children = malloc(sizeof(FileSystemTreeNode*) * tmp_tree_node->num_children);
 
         // loop through the number of inodes to make nodes
         // FileSystemTreeNode inode build for number node which we grab using
@@ -68,7 +82,7 @@ void cramfs_parse_blob(void* blob){
             int node_num = *(size_t*)dirent_table_ptr + ((sizeof(size_t) * (2+i)));
             char* tmp = inode_table_ptr + (sizeof(blob_inode)*node_num); // get inode num
         }
-        
+
         int dirent_size = sizeof(size_t) + sizeof(size_t) + (sizeof(size_t)*(*(size_t*)dirent_table_ptr + sizeof(size_t)));
         dirent_table_ptr += dirent_size; // push to next dirent
     }while (dirent_table_ptr != data_block_ptr); // are we out of dirents?
@@ -87,6 +101,24 @@ void cramfs_parse_blob(void* blob){
     // printf("path: %s\n", (char*)inode_table_ptr);
 }
 
+FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id){
+    // trying to find a child that exists that will be a parent for the next dirent of children
+    // if this is our parent node, node of a dirent
+    if(node->children == NULL){
+        return;
+    }
+
+    for(int i = 0; i < node->num_children; i++){
+        if(node->children[i]->node->id != id){
+            // if its not our node, then grab that cild node and look at its children and do that for all children
+            find_parent(node->children[i], id);
+        }
+        else{
+            return node;
+        }
+    }
+}
+
 
 void cramfs_register(){    
     vfs_register_driver(DRIVER_NAME, &cramfs_fsd);
@@ -101,7 +133,7 @@ void* cramfs_build_blob(){
     sb->magic_num = 0xFEF;
     sb->num_inodes = 4;
     sb->inode_table_offset = sizeof(SuperBlock);
-    sb->dirent_table_offset = sizeof(SuperBlock) + sizeof(blob_inode);
+    sb->dirent_table_offset = sizeof(SuperBlock) + sizeof(blob_inode_table);
     sb->blob_size = sizeof(SuperBlock) + (sizeof(blob_inode) * 4) + (sizeof(Dirent)*2) + 13 + 15;
     sb->start_data_block_offset = sizeof(SuperBlock) + (sizeof(blob_inode) * 4) + (sizeof(Dirent)*2);
 

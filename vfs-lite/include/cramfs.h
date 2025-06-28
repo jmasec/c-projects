@@ -24,6 +24,7 @@ extern void cramfs_parse_blob(void*); // this will called within mount, just par
 // void cramfs_lookup();
 inode* cramfs_mount(void*);
 void cramfs_unmount(inode*);
+FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id);
 
 typedef struct FileSystemTreeNode{
     inode *node; // inode 0 lets say

@@ -58,9 +58,9 @@ typedef struct __attribute__((packed)) blob_inode{
 static blob_inode blob_inode_table[NUM_INODES]; // chapters
 
 typedef struct __attribute__((packed)) Dirent{ // index of names
-    int node;
-    int num_inodes;
-    int inodes[2];
+    size_t node;
+    size_t num_inodes;
+    size_t inodes[2];
 } Dirent;
 
 typedef struct __attribute__((packed)) SuperBlock{ // table of contents
@@ -72,10 +72,5 @@ typedef struct __attribute__((packed)) SuperBlock{ // table of contents
     size_t start_data_block_offset;
 }SuperBlock;
 
-typedef struct __attribute__((packed)) FileData{
-    int inode_num;
-    size_t offset;
-    size_t size;
-}FileData;
 
 #endif /*CRAMFS*/

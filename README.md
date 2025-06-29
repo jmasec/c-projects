@@ -3,6 +3,6 @@
 - **strlib** : string lib. Unfinished.
     - error checking
     - testing
-- **custom_debugger** : in-progress
-- **mini VM** : in-progress
-- **vfs-lite**: just starting
+- **custom_debugger** : unfinished
+- **mini VM** : paused
+- **vfs-lite**: in-progress

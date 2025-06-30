@@ -39,72 +39,78 @@ void cramfs_parse_blob(void* blob){
     data_block_ptr = (char*)blob + sb->start_data_block_offset;
     char* tmp = NULL;
 
-
-    // // later maybe build a hash or lookup table for my tree for faster lookup
+    // later maybe build a hash or lookup table for my tree for faster lookup
     do{
         size_t node_id = *(size_t*)dirent_table_ptr; // get node for that dirent
         char* tmp_node = inode_table_ptr + sizeof(blob_inode)*node_id; // grab node
+        size_t num_children = *(size_t*)(dirent_table_ptr + sizeof(size_t));
         FileSystemTreeNode* tmp_tree_node;
 
+        // if its not root then we need to find the child that will be a new parent
         if(root != NULL){
             tmp_tree_node = root;
             tmp_tree_node = find_parent(tmp_tree_node, node_id);
+
+            tmp_tree_node->num_children = num_children;
+            tmp_tree_node->children = malloc(sizeof(FileSystemTreeNode*) * tmp_tree_node->num_children);
         }
         else{
             tmp_tree_node = malloc(sizeof(FileSystemTreeNode));
             root = tmp_tree_node;
+
+            inode* r_node = malloc(sizeof(inode));
+            r_node->id = *(size_t*)tmp_node;
+            tmp_node += sizeof(size_t);
+            r_node->type = *(size_t*)tmp_node;
+            tmp_node += sizeof(size_t);
+            r_node->size = *(size_t*)tmp_node;
+            tmp_node += sizeof(size_t);
+            r_node->data_offset = *(size_t*)tmp_node;
+            tmp_node += sizeof(size_t);
+            snprintf(r_node->path, MAX_FILE_PATH, "%s", (char*)tmp_node);
+            r_node->fops = &cramfs_ops;
+
+            tmp_tree_node->node = r_node;
+            tmp_tree_node->num_children = num_children;
+            tmp_tree_node->children = malloc(sizeof(FileSystemTreeNode*) * tmp_tree_node->num_children);
         }
 
-        // built root inode
-        inode* r_node = malloc(sizeof(inode));
-        r_node->id = *(size_t*)tmp_node;
-        tmp_node += sizeof(size_t);
-        r_node->type = *(size_t*)tmp_node;
-        tmp_node += sizeof(size_t);
-        r_node->size = *(size_t*)tmp_node;
-        tmp_node += sizeof(size_t);
-        r_node->data_offset = *(size_t*)tmp_node;
-        tmp_node += sizeof(size_t);
-        snprintf(r_node->path, MAX_FILE_PATH, "%s", *(char*)tmp_node);
-        r_node->fops = &cramfs_ops;
-
-        tmp_tree_node->node = r_node;
-        tmp_tree_node->num_children = (*(size_t*)dirent_table_ptr + sizeof(size_t));
-        tmp_tree_node->children = malloc(sizeof(FileSystemTreeNode*) * tmp_tree_node->num_children);
-
-        // loop through the number of inodes to make nodes
-        // FileSystemTreeNode inode build for number node which we grab using
-        // inode table pointer
-        // parent->children = malloc(sizeof(FileSystemTreeNode*) * dirent->num_nodes);
-        // then go into loop and setup the children
-        // how do we handle the next dirent?
-        for(int i = 0; i < (*(size_t*)dirent_table_ptr + sizeof(size_t)); i++){
-            int node_num = *(size_t*)dirent_table_ptr + ((sizeof(size_t) * (2+i)));
+        for(int i = 0; i < num_children; i++){
+            // inode_number = dirent table + ( the two size_t attributes + the inode we are currently on) 
+            int node_num = *(size_t*)(dirent_table_ptr + ((sizeof(size_t) * (2+i))));
+            // then get pointer to actual inode structure to begin building the inode
             char* tmp = inode_table_ptr + (sizeof(blob_inode)*node_num); // get inode num
+            FileSystemTreeNode* child_tree_node = malloc(sizeof(FileSystemTreeNode));
+
+            inode* tmp_inode = malloc(sizeof(inode));
+            tmp_inode->id = *(size_t*)tmp;
+            tmp += sizeof(size_t);
+            tmp_inode->type = *(size_t*)tmp;
+            tmp += sizeof(size_t);
+            tmp_inode->size = *(size_t*)tmp;
+            tmp += sizeof(size_t);
+            tmp_inode->data_offset = *(size_t*)tmp;
+            tmp += sizeof(size_t);
+            snprintf(tmp_inode->path, MAX_FILE_PATH, "%s", (char*)tmp);
+            tmp_inode->fops = &cramfs_ops;
+
+            child_tree_node->node = tmp_inode;
+            child_tree_node->num_children = 0;
+            child_tree_node->children = NULL;
+
+            tmp_tree_node->children[i] = child_tree_node;
         }
 
-        int dirent_size = sizeof(size_t) + sizeof(size_t) + (sizeof(size_t)*(*(size_t*)dirent_table_ptr + sizeof(size_t)));
-        dirent_table_ptr += dirent_size; // push to next dirent
+        dirent_table_ptr += (sizeof(Dirent)); // push to next dirent
     }while (dirent_table_ptr != data_block_ptr); // are we out of dirents?
 
-
-    // printf("ptr: %x\n", inode_table_ptr);
-    // printf("inode table offset: %i\n", sb->inode_table_offset);
-    // printf("id: %i\n", *(size_t*)inode_table_ptr);
-    // inode_table_ptr += sizeof(size_t);
-    // printf("type: %i\n", *(size_t*)inode_table_ptr);
-    // inode_table_ptr += sizeof(size_t);
-    // printf("size: %i\n", *(size_t*)inode_table_ptr);
-    // inode_table_ptr += sizeof(size_t);
-    // printf("data offset: %i\n", *(size_t*)inode_table_ptr);
-    // inode_table_ptr += sizeof(size_t);
-    // printf("path: %s\n", (char*)inode_table_ptr);
+    printf("Here");
 }
 
 FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id){
     // trying to find a child that exists that will be a parent for the next dirent of children
     // if this is our parent node, node of a dirent
-    if(node->children == NULL){
+    if(node->num_children == 0){
         return;
     }
 
@@ -114,7 +120,7 @@ FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id){
             find_parent(node->children[i], id);
         }
         else{
-            return node;
+            return node->children[i];
         }
     }
 }
@@ -151,19 +157,19 @@ void* cramfs_build_blob(){
     write_ptr += sizeof(blob_inode);
 
     blob_inode_table[1].id = 1;
-    blob_inode_table[1].type = FILE;
-    blob_inode_table[1].data_size = 13;
-    snprintf(blob_inode_table[1].path, MAX_FILE_PATH, "%s", "/hello.txt");
-    blob_inode_table[1].data_offset = sizeof(blob_inode_table[1].path) + sizeof(blob_inode)*2 + sizeof(Dirent)*2;
+    blob_inode_table[1].type = DIR;
+    blob_inode_table[1].data_size = 0;
+    blob_inode_table[1].data_offset = 0;
+    snprintf(blob_inode_table[1].path, MAX_FILE_PATH, "%s", "/docs");
 
     memcpy(write_ptr, &blob_inode_table[1], sizeof(blob_inode));
     write_ptr += sizeof(blob_inode);
 
     blob_inode_table[2].id = 2;
-    blob_inode_table[2].type = DIR;
-    blob_inode_table[2].data_size = 0;
-    blob_inode_table[2].data_offset = 0;
-    snprintf(blob_inode_table[2].path, MAX_FILE_PATH, "%s", "/docs");
+    blob_inode_table[2].type = FILE;
+    blob_inode_table[2].data_size = 13;
+    snprintf(blob_inode_table[2].path, MAX_FILE_PATH, "%s", "/hello.txt");
+    blob_inode_table[2].data_offset = sizeof(blob_inode_table[2].path) + sizeof(blob_inode) + sizeof(Dirent)*2;
 
     memcpy(write_ptr, &blob_inode_table[2], sizeof(blob_inode));
     write_ptr += sizeof(blob_inode);
@@ -172,7 +178,7 @@ void* cramfs_build_blob(){
     blob_inode_table[3].type = FILE;
     blob_inode_table[3].data_size = 15;
     snprintf(blob_inode_table[3].path, MAX_FILE_PATH, "%s", "/docs/readme.md");
-    blob_inode_table[1].data_offset = sizeof(blob_inode_table[1].path) + sizeof(Dirent)*2 + 13;
+    blob_inode_table[3].data_offset = sizeof(blob_inode_table[3].path) + sizeof(Dirent)*2 + 13;
 
     memcpy(write_ptr, &blob_inode_table[3], sizeof(blob_inode));
     write_ptr += sizeof(blob_inode);
@@ -187,9 +193,9 @@ void* cramfs_build_blob(){
     write_ptr += sizeof(Dirent);
 
     Dirent* d2 = (Dirent*)malloc(sizeof(Dirent));
-    d1->node = 1;
-    d1->num_inodes = 1;
-    d1->inodes[0] = 3;
+    d2->node = 1;
+    d2->num_inodes = 1;
+    d2->inodes[0] = 3;
 
     memcpy(write_ptr, d2, sizeof(Dirent));
     write_ptr += sizeof(Dirent);

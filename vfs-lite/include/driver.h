@@ -6,7 +6,7 @@
 #define O_RDONLY  0x01   
 #define O_WRONLY  0x02 
 
-#define MAX_FILE_PATH 20
+#define MAX_FILE_PATH 50
 
 typedef struct inode{
     size_t id;

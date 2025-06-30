@@ -13,6 +13,7 @@
 #define FILE 1
 
 typedef struct FileSystemTreeNode FileSystemTreeNode;
+extern FileSystemTreeNode* root;
 
 extern void cramfs_register(); // fill out the 
 extern void* cramfs_build_blob(); // this would not be here, the blob would be given already
@@ -25,6 +26,7 @@ extern void cramfs_parse_blob(void*); // this will called within mount, just par
 inode* cramfs_mount(void*);
 void cramfs_unmount(inode*); // this needs to free all of the memory
 FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id);
+void print_tree(FileSystemTreeNode* node);
 
 typedef struct FileSystemTreeNode{
     inode *node; // inode 0 lets say

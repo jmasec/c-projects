@@ -16,17 +16,6 @@ int main(){
 
     cramfs_parse_blob(blob);
 
-    // vfs_mount("/mnt/cramfs", "cramfs", blob);
-
-
-    // file* f = vfs_open("/mnt/cramfs/hello.txt", O_RDONLY);
-
-    // char buf[10];
-
-    // int ret = vfs_read(f, &buf, sizeof(buf));
-
-    // if(ret < 0){
-    //     printf("Failed Read");
-    // }
+    print_tree(root);
 
 }

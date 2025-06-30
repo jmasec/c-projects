@@ -5,6 +5,18 @@
 
 FileSystemTreeNode* root = NULL;
 
+void print_tree(FileSystemTreeNode* node){
+    if(node->num_children == 0){
+        printf("Node: %d\n", node->node->id);
+        return;
+    }
+
+    printf("Node: %d\n", node->node->id);
+    for(int i = 0; i < node->num_children; i++){
+        print_tree(node->children[i]);
+    }
+}
+
 inode* cramfs_mount(void*blob){
     cramfs_parse_blob(blob); // tree is made now
     return; // return first node of the tree root inode
@@ -103,8 +115,6 @@ void cramfs_parse_blob(void* blob){
 
         dirent_table_ptr += (sizeof(Dirent)); // push to next dirent
     }while (dirent_table_ptr != data_block_ptr); // are we out of dirents?
-
-    printf("Here");
 }
 
 FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id){

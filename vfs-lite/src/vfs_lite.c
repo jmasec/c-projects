@@ -38,6 +38,7 @@ void vfs_register_driver(const char* name, struct FileSystemDriver* fsd) {
 void vfs_mount(char* mount_path, char* fs_name, void* blob){
    // find driver
    RegisteredDriver* reg_driver = get_driver(fs_name);
+   int magic_num = *(int*)blob; // update to use magic num from superblock for driver type
    if (reg_driver == NULL){
         printf("[-] Driver for this filesystem is not registered yet!");
         return;

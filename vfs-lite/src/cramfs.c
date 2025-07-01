@@ -18,12 +18,12 @@ void print_tree(FileSystemTreeNode* node){
 }
 
 inode* cramfs_mount(void*blob){
-    cramfs_parse_blob(blob); // tree is made now
-    return; // return first node of the tree root inode
+    inode* root_inode = cramfs_parse_blob(blob); // tree is made now
+    return root_inode; // return first node of the tree root inode
 }
 
 // parse out parts into functions, parse sb, parse inode, make node
-void cramfs_parse_blob(void* blob){
+inode* cramfs_parse_blob(void* blob){
     SuperBlock* sb = malloc(sizeof(SuperBlock));
     char* read_ptr = blob;
     char* inode_table_ptr = NULL;
@@ -115,6 +115,8 @@ void cramfs_parse_blob(void* blob){
 
         dirent_table_ptr += (sizeof(Dirent)); // push to next dirent
     }while (dirent_table_ptr != data_block_ptr); // are we out of dirents?
+
+    return root->node;
 }
 
 FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id){

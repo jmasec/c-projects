@@ -228,7 +228,7 @@ void* cramfs_build_blob(){
     blob_inode_table[2].type = FILE;
     blob_inode_table[2].data_size = 13;
     snprintf(blob_inode_table[2].path, MAX_FILE_PATH, "%s", "/hello.txt");
-    blob_inode_table[2].data_offset = sizeof(blob_inode_table[2].path) + sizeof(blob_inode) + sizeof(Dirent)*2;
+    blob_inode_table[2].data_offset = sb->start_data_block_offset;
 
     memcpy(write_ptr, &blob_inode_table[2], sizeof(blob_inode));
     write_ptr += sizeof(blob_inode);
@@ -237,7 +237,7 @@ void* cramfs_build_blob(){
     blob_inode_table[3].type = FILE;
     blob_inode_table[3].data_size = 15;
     snprintf(blob_inode_table[3].path, MAX_FILE_PATH, "%s", "/docs/readme.md");
-    blob_inode_table[3].data_offset = sizeof(blob_inode_table[3].path) + sizeof(Dirent)*2 + 13;
+    blob_inode_table[3].data_offset = sb->start_data_block_offset + 13;
 
     memcpy(write_ptr, &blob_inode_table[3], sizeof(blob_inode));
     write_ptr += sizeof(blob_inode);

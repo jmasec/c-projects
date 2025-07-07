@@ -26,7 +26,7 @@ int main(){
 
     size_t ret = vfs_read(fd, buf, 10);
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < ret; i++) {
         printf("char: %c \n", ((char*)buf)[i]);
     }
 

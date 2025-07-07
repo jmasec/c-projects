@@ -22,7 +22,6 @@ extern void* cramfs_build_blob(); // this would not be here, the blob would be g
 extern inode* cramfs_parse_blob(void* blob); // this will called within mount, just parsing blob into structs but still referencing the blob for actual data
 // this will parse it into a tree using the structures in the blob
 file* cramfs_open(inode* node, int flags);
-// void cramfs_close();
 size_t cramfs_read(file* f, void* buf, size_t len);
 inode* cramfs_lookup(char* file_path);
 inode* cramfs_mount(void*blob);

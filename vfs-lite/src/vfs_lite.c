@@ -35,6 +35,25 @@ void vfs_register_driver(const char* name, struct FileSystemDriver* fsd) {
     }
 }
 
+void vfs_unmount(char* mount_path){
+    MountedFileSystem* filesystem_to_unmount = NULL;
+    char* mntpath_ptr = NULL;
+    // find fs type
+    for(int i = 0; i < mount_count; i++){
+        if((mntpath_ptr = strstr(mount_path, mount_table[i].mount_path)) != NULL){
+            filesystem_to_unmount = &mount_table[i];
+        }
+    }
+
+    if(mntpath_ptr == NULL){
+        printf("[-] Filesystem is not mounted before trying to open!\n");
+        return NULL;
+    }
+
+    // I need to remove it from my array
+    // then call cramfs_unmount and clean up all the structs
+}
+
 void vfs_mount(char* mount_path, char* fs_name, void* blob){
    // find driver
    RegisteredDriver* reg_driver = get_driver(fs_name);
@@ -99,12 +118,27 @@ file* vfs_open(char* path, int flags){
             printf("[-] Failed to open the file, driver open died");
             return NULL;
         }
-        fd->id = fd_count;
-        fd_table[fd_count] = fd;
-        fd_count++;
+        // look for empty fd slot
+        for(int i = 0; i < MAX_OPEN_FILES; i++){
+            if (fd_table[i] == NULL) {
+                fd->id = i;
+                fd_table[i] = fd;
+                fd_count++;
+            }
+        }
+    }
+    else{
+        printf("[-] Out of open file descriptors");
+        return NULL;
     }
 
     return fd;
+}
+
+int vfs_close(file* fd){
+    free(fd_table[fd->id]);
+    fd_count--;
+    return 0;
 }
 
 MountedFileSystem* get_mounted_filesystem(char *path){

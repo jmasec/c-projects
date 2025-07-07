@@ -63,6 +63,10 @@ inode* cramfs_lookup(char* file_path){
 
 }
 
+void cramfs_unmount(){
+    
+}
+
 inode* cramfs_mount(void*blob){
     inode* root_inode = cramfs_parse_blob(blob); // tree is made now
     return root_inode; // return first node of the tree root inode

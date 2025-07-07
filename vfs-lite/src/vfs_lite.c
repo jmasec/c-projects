@@ -29,7 +29,7 @@ int vfs_read(file* fd, void* buf, size_t size){
 // have to call extern func from drivers to send back the mount and unmount functions
 void vfs_register_driver(const char* name, struct FileSystemDriver* fsd) {
     if (driver_count < MAX_DRIVERS) {
-        snprintf(driver_table[driver_count].name, 16, "%s", name);
+        snprintf(driver_table[driver_count].name, 15, "%s", name);
         driver_table[driver_count].fsd = fsd;
         driver_count++;
     }
@@ -44,11 +44,17 @@ void vfs_mount(char* mount_path, char* fs_name, void* blob){
         return;
    }
 
+   reg_driver->magic_bytes = magic_num;
+
    if(mount_count < MAX_MOUNTED_FILESYSTEMS){
         inode* root_node = reg_driver->fsd->mount(blob);
+        if (root_node == NULL){
+            printf("[-] Driver mount failed!");
+            return;
+        }
 
         mount_table[mount_count].driver = reg_driver;
-        snprintf(mount_table[mount_count].mount_path, 64, "%s", mount_path);
+        snprintf(mount_table[mount_count].mount_path, 63, "%s", mount_path);
         mount_table[mount_count].root = root_node;
         mount_count++;
    }

@@ -14,8 +14,9 @@ int main(){
 
     void* blob = cramfs_build_blob();
 
-    cramfs_parse_blob(blob);
+    vfs_mount("/mnt/cramfs/", "cramfs", blob);
 
-    print_tree(root);
-
+    printf("Mounted FileSystem: %s\n", mount_table[0].mount_path);
+    printf("Driver name: %s\n", mount_table[0].driver->name);
+    printf("Magic: %x\n", mount_table[0].driver->magic_bytes);
 }

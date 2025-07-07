@@ -41,6 +41,7 @@ inode* cramfs_parse_blob(void* blob){
     sb->num_inodes = *(size_t*)read_ptr;
     read_ptr+= sizeof(size_t);
     sb->start_data_block_offset = *(size_t*)read_ptr;
+    read_ptr+= sizeof(size_t);
 
     printf("MAGIC NUM: %x\n", sb->magic_num);
     printf("size: %d\n", sb->blob_size);

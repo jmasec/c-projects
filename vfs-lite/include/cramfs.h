@@ -17,13 +17,13 @@ extern FileSystemTreeNode* root;
 
 extern void cramfs_register(); // fill out the 
 extern void* cramfs_build_blob(); // this would not be here, the blob would be given already
-extern void cramfs_parse_blob(void*); // this will called within mount, just parsing blob into structs but still referencing the blob for actual data
+extern inode* cramfs_parse_blob(void* blob); // this will called within mount, just parsing blob into structs but still referencing the blob for actual data
 // this will parse it into a tree using the structures in the blob
 // void cramfs_open();
 // void cramfs_close();
 // void cramfs_read();
 // void cramfs_lookup();
-inode* cramfs_mount(void*);
+inode* cramfs_mount(void*blob);
 void cramfs_unmount(inode*); // this needs to free all of the memory
 FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id);
 void print_tree(FileSystemTreeNode* node);

@@ -3,7 +3,7 @@
 #include <string.h>
 #include "vfs_lite.h" 
 
-file fd_table[MAX_OPEN_FILES];
+file* fd_table[MAX_OPEN_FILES];
 RegisteredDriver driver_table[MAX_DRIVERS];
 MountedFileSystem mount_table[MAX_MOUNTED_FILESYSTEMS];
 
@@ -11,18 +11,18 @@ int driver_count = 0;
 int mount_count = 0;
 int fd_count = 0;
 
+// need to add a reset function for the fd file posistion ptr
+
 int vfs_read(file* fd, void* buf, size_t size){
-    int ret;
-    if(fd->node->size < size){
-        ret = fd->node->fops->read(fd, buf, fd->node->size);
+    if((fd->node->size - fd->file_postion) < size){ // if file posistion is moved up then different size
+        return fd->node->fops->read(fd, buf, (fd->node->size - fd->file_postion));
     }
-    else{
-        ret = fd->node->fops->read(fd, buf, size);
+    else if(fd->node->size < size){ // if the file size is less than asking size
+        return fd->node->fops->read(fd, buf, fd->node->size);
     }
-    if (ret > 0){
-        fd->file_postion = ret; // how much would of been read
+    else{ // if size is less than file size
+        return fd->node->fops->read(fd, buf, size);
     }
-    return ret;
 }
 
 // drivers can call this, and it fills the vfs array of registered drivers in the vfs.h file
@@ -40,7 +40,7 @@ void vfs_mount(char* mount_path, char* fs_name, void* blob){
    RegisteredDriver* reg_driver = get_driver(fs_name);
    int magic_num = *(int*)blob; // update to use magic num from superblock for driver type
    if (reg_driver == NULL){
-        printf("[-] Driver for this filesystem is not registered yet!");
+        printf("[-] Driver for this filesystem is not registered yet!\n");
         return;
    }
 
@@ -49,7 +49,7 @@ void vfs_mount(char* mount_path, char* fs_name, void* blob){
    if(mount_count < MAX_MOUNTED_FILESYSTEMS){
         inode* root_node = reg_driver->fsd->mount(blob);
         if (root_node == NULL){
-            printf("[-] Driver mount failed!");
+            printf("[-] Driver mount failed!\n");
             return;
         }
 
@@ -72,40 +72,35 @@ RegisteredDriver* get_driver(char* fs_name){
 file* vfs_open(char* path, int flags){
     // call vfs_lookup till I find the right file
     // call the inode open I get back for that file
-    int fs_index = -1;
-    inode* node = NULL;
-
+    MountedFileSystem* curr_filesystem = NULL;
+    char* mntpath_ptr = NULL;
     // find fs type
     for(int i = 0; i < mount_count; i++){
-        if(strstr(mount_table[i].mount_path, path) != NULL){
-            fs_index = i;
+        if((mntpath_ptr = strstr(path, mount_table[i].mount_path)) != NULL){
+            curr_filesystem = &mount_table[i];
         }
     }
 
-    if(fs_index < 0){
-        printf("[-] Filesystem is not mounted before trying to open!");
+    if(mntpath_ptr == NULL){
+        printf("[-] Filesystem is not mounted before trying to open!\n");
         return NULL;
     }
 
-    char* token = strtok(path, DELIMINATOR);
+    char* file_path = mntpath_ptr + strlen(curr_filesystem->mount_path)-1;
 
-    node = mount_table[fs_index].root->fops->lookup(node, token);
+    printf("FILE PATH: %s\n", file_path);
 
-    token = strtok(NULL, DELIMINATOR);
-    
-    while (token != NULL){
-        node = node->fops->lookup(node,token);
-        token = strtok(NULL, DELIMINATOR);
-    }
+    inode* node = curr_filesystem->root->fops->lookup(file_path);
 
-    file* fd = NULL;
+    file* fd;
     if(fd_count < MAX_OPEN_FILES){
         fd = node->fops->open(node,flags);
         if (fd == NULL){
             printf("[-] Failed to open the file, driver open died");
             return NULL;
         }
-        fd_table[fd_count] = *fd;
+        fd->id = fd_count;
+        fd_table[fd_count] = fd;
         fd_count++;
     }
 

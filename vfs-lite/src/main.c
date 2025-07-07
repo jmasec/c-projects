@@ -19,4 +19,15 @@ int main(){
     printf("Mounted FileSystem: %s\n", mount_table[0].mount_path);
     printf("Driver name: %s\n", mount_table[0].driver->name);
     printf("Magic: %x\n", mount_table[0].driver->magic_bytes);
+
+    file* fd = vfs_open("/mnt/cramfs/hello.txt", O_RDONLY);
+
+    void* buf = malloc(40);
+
+    size_t ret = vfs_read(fd, buf, 10);
+
+    for (int i = 0; i < 10; i++) {
+        printf("char: %c \n", ((char*)buf)[i]);
+    }
+
 }

@@ -4,6 +4,7 @@
 #include "cramfs.h"
 
 FileSystemTreeNode* root = NULL;
+void* file_blob = NULL;
 
 void print_tree(FileSystemTreeNode* node){
     if(node->num_children == 0){
@@ -15,6 +16,51 @@ void print_tree(FileSystemTreeNode* node){
     for(int i = 0; i < node->num_children; i++){
         print_tree(node->children[i]);
     }
+}
+
+size_t cramfs_read(file* f, void* buf, size_t len){
+    // need to fix, offset to data not right
+    size_t offset = f->node->data_offset;
+    char* data_ptr = file_blob + offset; 
+    memcpy(buf, data_ptr, len);
+    f->file_postion = len;
+
+    return len;
+}
+
+file* cramfs_open(inode* node, int flags){
+    char* tok = strtok(node->path, "/");
+    file* fd = (file*)malloc(sizeof(file));
+    snprintf(fd->filename, 63, "%s", tok);
+    fd->node = node;
+    fd->flags = flags;
+    fd->file_postion = 0;
+
+    return fd;
+}
+
+inode* cramfs_lookup(char* file_path){
+    if(root == NULL)return;
+
+    FileSystemTreeNode* queue[MAX_QUEUE];
+    size_t front = 0; //dequeue
+    size_t rear = 0; // enqueue
+
+    queue[rear++] = root;
+
+    while (front < rear){
+        FileSystemTreeNode* curr_node = queue[front++];\
+
+        if(strcmp(curr_node->node->path, file_path) == 0){
+            return curr_node->node;
+        }
+
+        for(int i = 0; i < curr_node->num_children; i++){
+            queue[rear++] = curr_node->children[i];
+        }
+    }
+    return NULL;
+
 }
 
 inode* cramfs_mount(void*blob){
@@ -222,6 +268,8 @@ void* cramfs_build_blob(){
     free(sb);
     free(d1);
     free(d2);
+
+    file_blob = blob;
 
     return blob;
 }

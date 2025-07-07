@@ -18,6 +18,7 @@ typedef struct inode{
 }inode;
 
 typedef struct file{
+    size_t id;
     char filename[64]; 
     inode* node;
     size_t file_postion; // offset to where we are pointing to
@@ -30,7 +31,7 @@ typedef struct FileSystemDriver {
 }FileSystemDriver;
 
 typedef struct FileOps {
-    inode* (*lookup)(inode* dir, const char* name);
+    inode* (*lookup)(const char* name);
     file*  (*open)(inode* node, int flags);
     size_t        (*read)(file* f, void* buf, size_t len);
     size_t        (*write)(file* f, const void* buf, size_t len);

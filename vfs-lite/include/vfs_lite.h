@@ -25,7 +25,7 @@ typedef struct MountedFileSystem{
     RegisteredDriver* driver; 
 } MountedFileSystem;
 
-extern file fd_table[MAX_OPEN_FILES];
+extern file* fd_table[MAX_OPEN_FILES];
 extern RegisteredDriver driver_table[MAX_DRIVERS];
 extern MountedFileSystem mount_table[MAX_MOUNTED_FILESYSTEMS];
 

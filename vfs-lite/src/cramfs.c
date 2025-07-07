@@ -49,7 +49,7 @@ inode* cramfs_lookup(char* file_path){
     queue[rear++] = root;
 
     while (front < rear){
-        FileSystemTreeNode* curr_node = queue[front++];\
+        FileSystemTreeNode* curr_node = queue[front++];
 
         if(strcmp(curr_node->node->path, file_path) == 0){
             return curr_node->node;

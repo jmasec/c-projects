@@ -7,6 +7,8 @@ FileSystemTreeNode* root = NULL;
 void* file_blob = NULL;
 
 void print_tree(FileSystemTreeNode* node){
+    if (node == NULL) return;
+
     if(node->num_children == 0){
         printf("Node: %d\n", node->node->id);
         return;
@@ -16,6 +18,18 @@ void print_tree(FileSystemTreeNode* node){
     for(int i = 0; i < node->num_children; i++){
         print_tree(node->children[i]);
     }
+}
+
+void free_tree(FileSystemTreeNode* node){
+    if (node == NULL) return;
+
+    for(int i = 0; i < node->num_children; i++){
+        free_tree(node->children[i]);
+    }
+
+    free(node->children);  
+    free(node->node);     
+    free(node);      
 }
 
 size_t cramfs_read(file* f, void* buf, size_t len){
@@ -64,7 +78,7 @@ inode* cramfs_lookup(char* file_path){
 }
 
 void cramfs_unmount(){
-    
+    free_tree(root);
 }
 
 inode* cramfs_mount(void*blob){
@@ -166,6 +180,8 @@ inode* cramfs_parse_blob(void* blob){
 
         dirent_table_ptr += (sizeof(Dirent)); // push to next dirent
     }while (dirent_table_ptr != data_block_ptr); // are we out of dirents?
+
+    free(sb);
 
     return root->node;
 }

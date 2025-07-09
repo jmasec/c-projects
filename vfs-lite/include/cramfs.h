@@ -25,7 +25,7 @@ file* cramfs_open(inode* node, int flags);
 size_t cramfs_read(file* f, void* buf, size_t len);
 inode* cramfs_lookup(char* file_path);
 inode* cramfs_mount(void*blob);
-void cramfs_unmount(inode*); // this needs to free all of the memory
+void cramfs_unmount(); // this needs to free all of the memory
 FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id);
 void print_tree(FileSystemTreeNode* node);
 
@@ -39,7 +39,7 @@ typedef struct FileSystemTreeNode{
 
 static FileSystemDriver cramfs_fsd = {
     .mount = cramfs_mount,
-    .unmount = NULL,
+    .unmount = cramfs_unmount,
 };
 
 static FileOps cramfs_ops = {

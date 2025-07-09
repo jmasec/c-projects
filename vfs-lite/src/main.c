@@ -30,4 +30,16 @@ int main(){
         printf("char: %c \n", ((char*)buf)[i]);
     }
 
+    vfs_close(&fd);
+
+    void* buf2 = malloc(40);
+
+    vfs_read(fd, buf2, 10);
+
+    free(buf);
+    free(buf2);
+
+    vfs_unmount("/mnt/cramfs/");
+
+    file* fd2 = vfs_open("/mnt/cramfs/hello.txt", O_RDONLY);
 }

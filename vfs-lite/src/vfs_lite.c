@@ -14,6 +14,10 @@ int fd_count = 0;
 // need to add a reset function for the fd file posistion ptr
 
 int vfs_read(file* fd, void* buf, size_t size){
+    if(fd == NULL){
+        printf("[-] File Descriptor is invalid\n");
+        return -1;
+    }
     if((fd->node->size - fd->file_postion) < size){ // if file posistion is moved up then different size
         return fd->node->fops->read(fd, buf, (fd->node->size - fd->file_postion));
     }
@@ -52,6 +56,12 @@ void vfs_unmount(char* mount_path){
 
     // I need to remove it from my array
     // then call cramfs_unmount and clean up all the structs
+
+    filesystem_to_unmount->driver->fsd->unmount(filesystem_to_unmount->root);
+
+    memset(filesystem_to_unmount, 0, sizeof(MountedFileSystem));
+    mount_count--;
+
 }
 
 void vfs_mount(char* mount_path, char* fs_name, void* blob){
@@ -72,10 +82,15 @@ void vfs_mount(char* mount_path, char* fs_name, void* blob){
             return;
         }
 
-        mount_table[mount_count].driver = reg_driver;
-        snprintf(mount_table[mount_count].mount_path, 63, "%s", mount_path);
-        mount_table[mount_count].root = root_node;
-        mount_count++;
+        for(int i = 0; i < MAX_MOUNTED_FILESYSTEMS; i++){
+            if(mount_table[i].root == NULL){
+                mount_table[mount_count].driver = reg_driver;
+                snprintf(mount_table[mount_count].mount_path, 63, "%s", mount_path);
+                mount_table[mount_count].root = root_node;
+                mount_count++;
+                break;
+            }
+        }
    }
 }
 
@@ -124,6 +139,7 @@ file* vfs_open(char* path, int flags){
                 fd->id = i;
                 fd_table[i] = fd;
                 fd_count++;
+                break;
             }
         }
     }
@@ -135,8 +151,13 @@ file* vfs_open(char* path, int flags){
     return fd;
 }
 
-int vfs_close(file* fd){
-    free(fd_table[fd->id]);
+int vfs_close(file** fd){
+
+    int id = (*fd)->id;
+    free(*fd);
+    fd_table[id] = NULL;
+    *fd = NULL; 
+
     fd_count--;
     return 0;
 }

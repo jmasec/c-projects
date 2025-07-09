@@ -38,7 +38,7 @@ void vfs_mount(char* mount_path, char* fs_name, void* blob);
 void vfs_unmount(char* mount_path);
 file* vfs_open(char* path, int flags);
 int vfs_read(file* fd, void* buf, size_t size);
-int vfs_close(file* fd);
+int vfs_close(file** fd);
 MountedFileSystem* find_prefix_mount(char *path);
 RegisteredDriver* get_driver(char* fs_name);
 

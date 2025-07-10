@@ -14,6 +14,7 @@
 #define DIR 0
 #define FILE 1
 
+
 typedef struct FileSystemTreeNode FileSystemTreeNode;
 extern FileSystemTreeNode* root;
 
@@ -28,6 +29,8 @@ inode* cramfs_mount(void*blob);
 void cramfs_unmount(); // this needs to free all of the memory
 FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id);
 void print_tree(FileSystemTreeNode* node);
+static inline void read_and_advance(void* dest, size_t size, char** ptr);
+inode* build_inode(char** ptr);
 
 typedef struct FileSystemTreeNode{
     inode *node; // inode 0 lets say

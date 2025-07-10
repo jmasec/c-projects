@@ -79,12 +79,34 @@ inode* cramfs_lookup(char* file_path){
 
 void cramfs_unmount(){
     free_tree(root);
+    free(file_blob);
 }
 
 inode* cramfs_mount(void*blob){
     inode* root_inode = cramfs_parse_blob(blob); // tree is made now
     return root_inode; // return first node of the tree root inode
 }
+
+void cramfs_register(){    
+    vfs_register_driver(DRIVER_NAME, &cramfs_fsd);
+}
+
+static inline void read_and_advance(void* dest, size_t size, char** ptr) {
+    memcpy(dest, *ptr, size);
+    *ptr += size;
+}
+
+inode* build_inode(char** ptr){
+    inode* node = malloc(sizeof(inode));
+    read_and_advance(&(node->id), sizeof(size_t), ptr);
+    read_and_advance(&(node->type), sizeof(size_t), ptr);
+    read_and_advance(&(node->size), sizeof(size_t), ptr);
+    read_and_advance(&(node->data_offset), sizeof(size_t), ptr);
+    snprintf(node->path, MAX_FILE_PATH, "%s", *ptr);
+    node->fops = &cramfs_ops;
+    return node;
+}
+
 
 // parse out parts into functions, parse sb, parse inode, make node
 inode* cramfs_parse_blob(void* blob){
@@ -94,18 +116,12 @@ inode* cramfs_parse_blob(void* blob){
     char* dirent_table_ptr = NULL;
     char* data_block_ptr = NULL;
 
-    sb->magic_num = *(int*)read_ptr;
-    read_ptr+= sizeof(int);
-    sb->blob_size = *(size_t*)read_ptr;
-    read_ptr+= sizeof(size_t);
-    sb->inode_table_offset = *(size_t*)read_ptr;
-    read_ptr+= sizeof(size_t);
-    sb->dirent_table_offset = *(size_t*)read_ptr;
-    read_ptr+= sizeof(size_t);
-    sb->num_inodes = *(size_t*)read_ptr;
-    read_ptr+= sizeof(size_t);
-    sb->start_data_block_offset = *(size_t*)read_ptr;
-    read_ptr+= sizeof(size_t);
+    read_and_advance(&(sb->magic_num), sizeof(int), &read_ptr);
+    read_and_advance(&(sb->blob_size), sizeof(size_t), &read_ptr);
+    read_and_advance(&(sb->inode_table_offset), sizeof(size_t), &read_ptr);
+    read_and_advance(&(sb->dirent_table_offset), sizeof(size_t), &read_ptr);
+    read_and_advance(&(sb->num_inodes), sizeof(size_t), &read_ptr);
+    read_and_advance(&(sb->start_data_block_offset), sizeof(size_t), &read_ptr);
 
     printf("MAGIC NUM: %x\n", sb->magic_num);
     printf("size: %d\n", sb->blob_size);
@@ -135,17 +151,7 @@ inode* cramfs_parse_blob(void* blob){
             tmp_tree_node = malloc(sizeof(FileSystemTreeNode));
             root = tmp_tree_node;
 
-            inode* r_node = malloc(sizeof(inode));
-            r_node->id = *(size_t*)tmp_node;
-            tmp_node += sizeof(size_t);
-            r_node->type = *(size_t*)tmp_node;
-            tmp_node += sizeof(size_t);
-            r_node->size = *(size_t*)tmp_node;
-            tmp_node += sizeof(size_t);
-            r_node->data_offset = *(size_t*)tmp_node;
-            tmp_node += sizeof(size_t);
-            snprintf(r_node->path, MAX_FILE_PATH, "%s", (char*)tmp_node);
-            r_node->fops = &cramfs_ops;
+            inode* r_node = build_inode(&tmp_node);
 
             tmp_tree_node->node = r_node;
             tmp_tree_node->num_children = num_children;
@@ -159,17 +165,7 @@ inode* cramfs_parse_blob(void* blob){
             char* tmp = inode_table_ptr + (sizeof(blob_inode)*node_num); // get inode num
             FileSystemTreeNode* child_tree_node = malloc(sizeof(FileSystemTreeNode));
 
-            inode* tmp_inode = malloc(sizeof(inode));
-            tmp_inode->id = *(size_t*)tmp;
-            tmp += sizeof(size_t);
-            tmp_inode->type = *(size_t*)tmp;
-            tmp += sizeof(size_t);
-            tmp_inode->size = *(size_t*)tmp;
-            tmp += sizeof(size_t);
-            tmp_inode->data_offset = *(size_t*)tmp;
-            tmp += sizeof(size_t);
-            snprintf(tmp_inode->path, MAX_FILE_PATH, "%s", (char*)tmp);
-            tmp_inode->fops = &cramfs_ops;
+            inode* tmp_inode = build_inode(&tmp);
 
             child_tree_node->node = tmp_inode;
             child_tree_node->num_children = 0;
@@ -187,8 +183,6 @@ inode* cramfs_parse_blob(void* blob){
 }
 
 FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id){
-    // trying to find a child that exists that will be a parent for the next dirent of children
-    // if this is our parent node, node of a dirent
     if(node->num_children == 0){
         return;
     }
@@ -204,10 +198,6 @@ FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id){
     }
 }
 
-
-void cramfs_register(){    
-    vfs_register_driver(DRIVER_NAME, &cramfs_fsd);
-}
 
 void* cramfs_build_blob(){
     // "/", "/docs", "/hello.txt", "/docs/readme.md"

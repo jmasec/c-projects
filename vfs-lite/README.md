@@ -130,3 +130,6 @@ The driver parses the blob and returns the root inode
 VFS adds this to its mount_table
 
 Stores: mount path (/mnt/cramfs), driver pointer, and root inode
+
+Updates I need to do: 
+Move from the data blob I have to blocks of memory to be more realistic

@@ -13,7 +13,7 @@ int fd_count = 0;
 
 // need to add a reset function for the fd file posistion ptr
 
-int vfs_read(file* fd, void* buf, size_t size){
+size_t vfs_read(file* fd, void* buf, size_t size){
     if(fd == NULL){
         printf("[-] File Descriptor is invalid\n");
         return -1;
@@ -53,9 +53,6 @@ void vfs_unmount(char* mount_path){
         printf("[-] Filesystem is not mounted before trying to open!\n");
         return NULL;
     }
-
-    // I need to remove it from my array
-    // then call cramfs_unmount and clean up all the structs
 
     filesystem_to_unmount->driver->fsd->unmount(filesystem_to_unmount->root);
 

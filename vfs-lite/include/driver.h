@@ -25,11 +25,6 @@ typedef struct file{
     int flags;
 }file;
 
-typedef struct FileSystemDriver {
-    inode* (*mount)(void* blob);
-    void (*unmount)(inode* root);
-}FileSystemDriver;
-
 typedef struct FileOps {
     inode* (*lookup)(const char* name);
     file*  (*open)(inode* node, int flags);
@@ -37,5 +32,24 @@ typedef struct FileOps {
     size_t        (*write)(file* f, const void* buf, size_t len);
     int           (*close)(file* f);
 } FileOps;
+
+typedef enum {
+    SOURCE_TYPE_BLOB,
+    SOURCE_TYPE_BLOCK
+} SourceType;
+
+typedef struct {
+    SourceType type;
+    union {
+        void* blob;
+        int fd;
+    };
+} FileSystemSource;
+
+typedef struct FileSystemDriver {
+    inode* (*mount)(FileSystemSource* source);
+    void (*unmount)(inode* root);
+}FileSystemDriver;
+
 
 #endif /*DRIVER*/

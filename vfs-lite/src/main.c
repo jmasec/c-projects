@@ -1,6 +1,7 @@
 #include <stdio.h>    
 #include <stdlib.h> 
 #include <string.h>
+#include <fcntl.h>
 #include "vfs_lite.h"
 #include "cramfs.h"
 
@@ -10,11 +11,18 @@ int main(){
 
     printf("Just registered: %s\n", driver_table[driver_count - 1].name);
 
+    printf("Just registered magic: %x\n", driver_table[driver_count - 1].magic_bytes);
+
     printf("Mount Func: %x, %x\n", driver_table[driver_count - 1].fsd->mount, driver_table[driver_count - 1].fsd->unmount);
 
     void* blob = cramfs_build_blob();
 
-    vfs_mount("/mnt/cramfs/", "cramfs", blob);
+    FileSystemSource s = {
+        .blob = blob,
+        .type = SOURCE_TYPE_BLOB
+    };
+
+    vfs_mount("/mnt/cramfs/", &s);
 
     printf("Mounted FileSystem: %s\n", mount_table[0].mount_path);
     printf("Driver name: %s\n", mount_table[0].driver->name);
@@ -42,4 +50,18 @@ int main(){
     vfs_unmount("/mnt/cramfs/");
 
     file* fd2 = vfs_open("/mnt/cramfs/hello.txt", O_RDONLY);
+
+    int block_fd = open("minifs.img", O_RDWR);
+    if (block_fd < 0) {
+        perror("Failed to open disk image");
+        return 1;
+    }
+
+    FileSystemSource s2 = {
+        .fd = block_fd,
+        .type = SOURCE_TYPE_BLOCK
+    };
+
+    vfs_mount("/mnt/minifs", &s2);
+
 }

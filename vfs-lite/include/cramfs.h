@@ -21,11 +21,10 @@ extern FileSystemTreeNode* root;
 extern void cramfs_register(); // fill out the 
 extern void* cramfs_build_blob(); // this would not be here, the blob would be given already
 extern inode* cramfs_parse_blob(void* blob); // this will called within mount, just parsing blob into structs but still referencing the blob for actual data
-// this will parse it into a tree using the structures in the blob
 file* cramfs_open(inode* node, int flags);
 size_t cramfs_read(file* f, void* buf, size_t len);
 inode* cramfs_lookup(char* file_path);
-inode* cramfs_mount(void*blob);
+inode* cramfs_mount(FileSystemSource* soruce);
 void cramfs_unmount(); // this needs to free all of the memory
 FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id);
 void print_tree(FileSystemTreeNode* node);

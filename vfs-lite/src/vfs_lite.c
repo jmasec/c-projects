@@ -31,10 +31,11 @@ size_t vfs_read(file* fd, void* buf, size_t size){
 
 // drivers can call this, and it fills the vfs array of registered drivers in the vfs.h file
 // have to call extern func from drivers to send back the mount and unmount functions
-void vfs_register_driver(const char* name, struct FileSystemDriver* fsd) {
+void vfs_register_driver(const char* name, int magic_num, struct FileSystemDriver* fsd) {
     if (driver_count < MAX_DRIVERS) {
         snprintf(driver_table[driver_count].name, 15, "%s", name);
         driver_table[driver_count].fsd = fsd;
+        driver_table[driver_count].magic_bytes = magic_num;
         driver_count++;
     }
 }
@@ -58,46 +59,41 @@ void vfs_unmount(char* mount_path){
 
     memset(filesystem_to_unmount, 0, sizeof(MountedFileSystem));
     mount_count--;
-
 }
 
-void vfs_mount(char* mount_path, char* fs_name, void* blob){
-   // find driver
-   RegisteredDriver* reg_driver = get_driver(fs_name);
-   int magic_num = *(int*)blob; // update to use magic num from superblock for driver type
-   if (reg_driver == NULL){
-        printf("[-] Driver for this filesystem is not registered yet!\n");
-        return;
-   }
+void vfs_mount(char* mount_path, FileSystemSource* source){
+    int magic_num = 0;
 
-   reg_driver->magic_bytes = magic_num;
+    if(source->type == SOURCE_TYPE_BLOB){
+        magic_num = *(int*)source->blob;
+    }
+    else{
+        pread(source->fd, &magic_num, sizeof(int), 0);
+    }
 
-   if(mount_count < MAX_MOUNTED_FILESYSTEMS){
-        inode* root_node = reg_driver->fsd->mount(blob);
-        if (root_node == NULL){
-            printf("[-] Driver mount failed!\n");
+    RegisteredDriver* reg_driver = get_driver(magic_num);
+    if (reg_driver == NULL){
+            printf("[-] Driver for this filesystem is not registered yet!\n");
             return;
-        }
+    }
 
-        for(int i = 0; i < MAX_MOUNTED_FILESYSTEMS; i++){
-            if(mount_table[i].root == NULL){
-                mount_table[mount_count].driver = reg_driver;
-                snprintf(mount_table[mount_count].mount_path, 63, "%s", mount_path);
-                mount_table[mount_count].root = root_node;
-                mount_count++;
-                break;
+    if(mount_count < MAX_MOUNTED_FILESYSTEMS){
+            inode* root_node = reg_driver->fsd->mount(source);
+            if (root_node == NULL){
+                printf("[-] Driver mount failed!\n");
+                return;
             }
-        }
-   }
-}
 
-RegisteredDriver* get_driver(char* fs_name){
-   for(int i = 0; i < driver_count; i ++){
-        if((strcmp(driver_table[i].name, fs_name)) == 0){
-            return &driver_table[i];
-        }
-   }
-   return NULL;
+            for(int i = 0; i < MAX_MOUNTED_FILESYSTEMS; i++){
+                if(mount_table[i].root == NULL){
+                    mount_table[mount_count].driver = reg_driver;
+                    snprintf(mount_table[mount_count].mount_path, 63, "%s", mount_path);
+                    mount_table[mount_count].root = root_node;
+                    mount_count++;
+                    break;
+                }
+            }
+    }
 }
 
 file* vfs_open(char* path, int flags){
@@ -158,6 +154,17 @@ int vfs_close(file** fd){
     fd_count--;
     return 0;
 }
+
+
+RegisteredDriver* get_driver(int magic_num){
+   for(int i = 0; i < driver_count; i++){
+        if(magic_num == driver_table[i].magic_bytes){
+            return &driver_table[i];
+        }
+   }
+   return NULL;
+}
+
 
 MountedFileSystem* get_mounted_filesystem(char *path){
     MountedFileSystem *mfs = find_prefix_mount(path);

@@ -61,14 +61,23 @@ void vfs_unmount(char* mount_path){
     mount_count--;
 }
 
-void vfs_mount(char* mount_path, FileSystemSource* source){
+void vfs_mount(char* mount_path, char* img_path, void* blob){
     int magic_num = 0;
 
-    if(source->type == SOURCE_TYPE_BLOB){
-        magic_num = *(int*)source->blob;
+    if(img_path == NULL){
+        if(blob == NULL){
+            printf("[-] Need to pass in a blob filesystem for this!");
+            return;
+        }
+        magic_num = *(int*)blob;
     }
     else{
-        pread(source->fd, &magic_num, sizeof(int), 0);
+        int block_fd = open(img_path, O_RDWR);
+        if (block_fd < 0) {
+            perror("Failed to open disk image");
+            return 1;
+        }
+        pread(block_fd, &magic_num, sizeof(int), 0);
     }
 
     RegisteredDriver* reg_driver = get_driver(magic_num);
@@ -77,8 +86,9 @@ void vfs_mount(char* mount_path, FileSystemSource* source){
             return;
     }
 
+    // how to handle this part?
     if(mount_count < MAX_MOUNTED_FILESYSTEMS){
-            inode* root_node = reg_driver->fsd->mount(source);
+            inode* root_node = reg_driver->fsd->mount(blob);
             if (root_node == NULL){
                 printf("[-] Driver mount failed!\n");
                 return;
@@ -165,24 +175,14 @@ RegisteredDriver* get_driver(int magic_num){
    return NULL;
 }
 
+// these will build out the mounted filesytsem structs and set the 
+// block device struct
+void mount_blob_filesystem(){
 
-MountedFileSystem* get_mounted_filesystem(char *path){
-    MountedFileSystem *mfs = find_prefix_mount(path);
-    if(mfs == NULL){
-        printf("[-] No prefix was found, is this filesystem mounted?");
-        return;
-    }
-    return mfs;
 }
 
-MountedFileSystem* find_prefix_mount(char *path){
-    for(int i = 0; i < mount_count; i ++){
-        if(strstr(mount_table[i].mount_path, path) != NULL){
-            return &mount_table[i];
-        }
-    }
-    return NULL;
-}
+void mount_block_filesystem(){
 
+}
 
 

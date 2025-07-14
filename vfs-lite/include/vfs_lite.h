@@ -5,10 +5,6 @@
 #define MAX_MOUNTED_FILESYSTEMS 10
 #define MAX_DRIVERS 8
 
-#define MEMFS_PATH "mem"
-#define EXT2_PATH "ext2"
-#define DELIMINATOR "/"
-
 #include "driver.h"
 
 
@@ -22,7 +18,8 @@ typedef struct RegisteredDriver{
 typedef struct MountedFileSystem{
     char mount_path[64];
     inode* root;
-    RegisteredDriver* driver; 
+    RegisteredDriver* driver;
+    BlockDevice* block_device;
 } MountedFileSystem;
 
 extern file* fd_table[MAX_OPEN_FILES];
@@ -34,13 +31,14 @@ extern int mount_count;
 extern int fd_count;
 
 void vfs_register_driver(const char* name, int magic_bytes, struct FileSystemDriver* fsd);
-void vfs_mount(char* mount_path,  FileSystemSource* source);
+void vfs_mount(char* mount_path, char* img_path, void* blob);
 void vfs_unmount(char* mount_path);
 file* vfs_open(char* path, int flags);
 size_t vfs_read(file* fd, void* buf, size_t size);
 int vfs_close(file** fd);
-MountedFileSystem* find_prefix_mount(char *path);
 RegisteredDriver* get_driver(int magic_num);
+void mount_blob_filesystem();
+void mount_block_filesystem();
 
 /*
 For performance I want to implement a cache for inodes and filenames so

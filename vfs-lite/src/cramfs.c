@@ -82,8 +82,8 @@ void cramfs_unmount(){
     free(file_blob);
 }
 
-inode* cramfs_mount(FileSystemSource* soruce){
-    inode* root_inode = cramfs_parse_blob(soruce->blob); // tree is made now
+inode* cramfs_mount(void* blob){
+    inode* root_inode = cramfs_parse_blob(blob); // tree is made now
     return root_inode; // return first node of the tree root inode
 }
 

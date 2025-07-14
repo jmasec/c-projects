@@ -1,9 +1,9 @@
 #include <stdio.h>    
 #include <stdlib.h> 
 #include <string.h>
-#include <fcntl.h>
 #include "vfs_lite.h"
 #include "cramfs.h"
+#include "blockfs.h"
 
 int main(){
     // this is where cramfs_register is called
@@ -17,12 +17,7 @@ int main(){
 
     void* blob = cramfs_build_blob();
 
-    FileSystemSource s = {
-        .blob = blob,
-        .type = SOURCE_TYPE_BLOB
-    };
-
-    vfs_mount("/mnt/cramfs/", &s);
+    vfs_mount("/mnt/cramfs/", NULL ,blob);
 
     printf("Mounted FileSystem: %s\n", mount_table[0].mount_path);
     printf("Driver name: %s\n", mount_table[0].driver->name);
@@ -51,17 +46,14 @@ int main(){
 
     file* fd2 = vfs_open("/mnt/cramfs/hello.txt", O_RDONLY);
 
-    int block_fd = open("minifs.img", O_RDWR);
-    if (block_fd < 0) {
-        perror("Failed to open disk image");
-        return 1;
-    }
+    blockfs_register();
 
-    FileSystemSource s2 = {
-        .fd = block_fd,
-        .type = SOURCE_TYPE_BLOCK
-    };
+    printf("Just registered: %s\n", driver_table[driver_count - 1].name);
 
-    vfs_mount("/mnt/minifs", &s2);
+    printf("Just registered magic: %x\n", driver_table[driver_count - 1].magic_bytes);
+
+    printf("Mount Func: %x, %x\n", driver_table[driver_count - 1].fsd->mount, driver_table[driver_count - 1].fsd->unmount);
+
+    vfs_mount("/mnt/minifs", "minifs.img", NULL);
 
 }

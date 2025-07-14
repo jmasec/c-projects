@@ -2,12 +2,15 @@
 #include "driver.h"
 
 #define DRIVER_NAME "blockfs"
+#define MAGIC_NUM 0x4D465346 
+#define BLOCK_SIZE 512
 
-
-void blockfs_register();
+extern void blockfs_register();
+inode* blockfs_parse_disk(int);
+inode* blockfs_mount(FileSystemSource* soruce);
 
 static FileSystemDriver blockfs_fsd = {
-    .mount = NULL,
+    .mount = blockfs_mount,
     .unmount = NULL,
 };
 
@@ -22,4 +25,4 @@ typedef struct {
     uint32_t block_bitmap_block;
     uint32_t inode_table_start;
     uint32_t data_block_start;
-} SuperBlock;
+} SuperBlockDisk;

@@ -2,11 +2,10 @@
 #define DRIVER
 
 #include <stddef.h>
-
-#define O_RDONLY  0x01   
-#define O_WRONLY  0x02 
+#include <fcntl.h>
 
 #define MAX_FILE_PATH 50
+#define MAX_INODES 10
 
 typedef struct inode{
     size_t id;
@@ -50,6 +49,14 @@ typedef struct FileSystemDriver {
     inode* (*mount)(FileSystemSource* source);
     void (*unmount)(inode* root);
 }FileSystemDriver;
+
+typedef struct {
+    int fd;
+    inode* root_inode;
+    inode* inode_cache[MAX_INODES];  // optional
+    // maybe a hashmap of name->inode for speed
+} BlockDevice;
+
 
 
 #endif /*DRIVER*/

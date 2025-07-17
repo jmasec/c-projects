@@ -7,6 +7,25 @@
 
 #include "driver.h"
 
+// typedef struct inode {
+//     int inode_number; // optional
+//     void* internal_inode; // driver-specific inode (e.g., MinifsInode*, CramfsInode*)
+//     struct FileOps* fops; // read, write, lookup, etc.
+//     struct Superblock* sb; // pointer to superblock if needed
+// } inode;
+
+// typedef struct FileSystemTreeNode {
+//     inode* node;
+//     struct FileSystemTreeNode** children;
+//     int num_children;
+// } FileSystemTreeNode;
+
+// typedef struct MountedFileSystem {
+//     char mount_path[64];                  // e.g. "/mnt/minifs"
+//     FileSystemTreeNode* root;             // Tree of all inodes
+//     RegisteredDriver* driver;             // FS driver (minifs, cramfs, etc.)
+//     BlockDevice* block_device;            // Only needed for block-based FS
+// } MountedFileSystem;
 
 // registered drivers on the system, hardcoded at this point
 typedef struct RegisteredDriver{
@@ -37,8 +56,6 @@ file* vfs_open(char* path, int flags);
 size_t vfs_read(file* fd, void* buf, size_t size);
 int vfs_close(file** fd);
 RegisteredDriver* get_driver(int magic_num);
-void mount_blob_filesystem();
-void mount_block_filesystem();
 
 /*
 For performance I want to implement a cache for inodes and filenames so

@@ -63,6 +63,8 @@ void vfs_unmount(char* mount_path){
 
 void vfs_mount(char* mount_path, char* img_path, void* blob){
     int magic_num = 0;
+    int block_fd;
+    FileSystemSource* source = malloc(sizeof(FileSystemSource));
 
     if(img_path == NULL){
         if(blob == NULL){
@@ -70,14 +72,18 @@ void vfs_mount(char* mount_path, char* img_path, void* blob){
             return;
         }
         magic_num = *(int*)blob;
+        source->blob = blob;
+        source->type = SOURCE_TYPE_BLOB;
     }
     else{
-        int block_fd = open(img_path, O_RDWR);
+        block_fd = open(img_path, O_RDWR);
         if (block_fd < 0) {
             perror("Failed to open disk image");
             return 1;
         }
         pread(block_fd, &magic_num, sizeof(int), 0);
+        source->fd = block_fd;
+        source->type = SOURCE_TYPE_BLOCK;
     }
 
     RegisteredDriver* reg_driver = get_driver(magic_num);
@@ -86,9 +92,15 @@ void vfs_mount(char* mount_path, char* img_path, void* blob){
             return;
     }
 
-    // how to handle this part?
     if(mount_count < MAX_MOUNTED_FILESYSTEMS){
-            inode* root_node = reg_driver->fsd->mount(blob);
+            BlockDevice* block_device = (BlockDevice*)calloc(1, sizeof(BlockDevice));
+            inode* root_node = reg_driver->fsd->mount(source);
+
+            if (img_path != NULL){
+                block_device->block_fd = block_fd;
+                block_device->root_inode = root_node;
+            }
+
             if (root_node == NULL){
                 printf("[-] Driver mount failed!\n");
                 return;
@@ -99,6 +111,7 @@ void vfs_mount(char* mount_path, char* img_path, void* blob){
                     mount_table[mount_count].driver = reg_driver;
                     snprintf(mount_table[mount_count].mount_path, 63, "%s", mount_path);
                     mount_table[mount_count].root = root_node;
+                    mount_table[mount_count].block_device = block_device; // can be null
                     mount_count++;
                     break;
                 }
@@ -174,15 +187,4 @@ RegisteredDriver* get_driver(int magic_num){
    }
    return NULL;
 }
-
-// these will build out the mounted filesytsem structs and set the 
-// block device struct
-void mount_blob_filesystem(){
-
-}
-
-void mount_block_filesystem(){
-
-}
-
 

@@ -24,7 +24,7 @@ extern inode* cramfs_parse_blob(void* blob); // this will called within mount, j
 file* cramfs_open(inode* node, int flags);
 size_t cramfs_read(file* f, void* buf, size_t len);
 inode* cramfs_lookup(char* file_path);
-inode* cramfs_mount(FileSystemSource* soruce);
+inode* cramfs_mount(FileSystemSource* source);
 void cramfs_unmount(); // this needs to free all of the memory
 FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id);
 void print_tree(FileSystemTreeNode* node);

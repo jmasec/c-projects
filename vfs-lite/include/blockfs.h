@@ -1,4 +1,3 @@
-#include <stdint.h>
 #include "driver.h"
 
 #define DRIVER_NAME "blockfs"
@@ -7,22 +6,29 @@
 
 extern void blockfs_register();
 inode* blockfs_parse_disk(int);
-inode* blockfs_mount(FileSystemSource* soruce);
+inode* blockfs_mount(int fd);
 
 static FileSystemDriver blockfs_fsd = {
     .mount = blockfs_mount,
     .unmount = NULL,
 };
 
-typedef struct {
-    uint32_t magic;
-    uint32_t total_blocks;
-    uint32_t free_blocks;
-    uint32_t total_inodes;
-    uint32_t free_inodes;
-    uint32_t block_size;
-    uint32_t inode_bitmap_block;
-    uint32_t block_bitmap_block;
-    uint32_t inode_table_start;
-    uint32_t data_block_start;
-} SuperBlockDisk;
+// typedef struct {
+//     uint32_t magic;
+//     uint32_t block_size;
+//     uint32_t inode_count;
+//     uint32_t inode_table_block;
+//     uint32_t dirent_start_block;
+// } Superblock;
+
+// typedef struct {
+//     uint8_t type;               // 0 = file, 1 = dir
+//     uint32_t size;
+//     uint32_t direct_block;      // block with file data or dirents
+//     char name[28];              // null-terminated
+// } MinifsInode;
+
+// typedef struct {
+//     uint32_t inode_number;
+//     char name[28]; // name of file or dir in this entry
+// } MinifsDirent;

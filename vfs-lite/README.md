@@ -133,3 +133,20 @@ Stores: mount path (/mnt/cramfs), driver pointer, and root inode
 
 Updates I need to do: 
 Move from the data blob I have to blocks of memory to be more realistic
+
+- I am gonna have the drivers use the structs from the VFS kernel side
+
+int fd = open("/home/bob/file.txt", O_RDONLY);
+
+VFS Path Resolution Tree:
+(superblock)
+   |
+   v
+[dentry: "/"] --> [inode: dir]
+      |
+   [dentry: "home"] --> [inode: dir]
+      |
+   [dentry: "bob"] --> [inode: dir]
+      |
+   [dentry: "file.txt"] --> [inode: file]
+

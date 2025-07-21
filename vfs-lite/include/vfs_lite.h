@@ -4,62 +4,129 @@
 #define MAX_OPEN_FILES 256
 #define MAX_MOUNTED_FILESYSTEMS 10
 #define MAX_DRIVERS 8
+#define MAX_FILE_PATH 50
+#define MAX_INODES 10
+#define MAX_DIRENTRY 10
+#define MAX_NAME 255
 
-#include "driver.h"
+#include <stddef.h>
+#include <fcntl.h>
+#include <stdint.h>
 
-// typedef struct inode {
-//     int inode_number; // optional
-//     void* internal_inode; // driver-specific inode (e.g., MinifsInode*, CramfsInode*)
-//     struct FileOps* fops; // read, write, lookup, etc.
-//     struct Superblock* sb; // pointer to superblock if needed
-// } inode;
+typedef struct DirEntry DirEntry;
+typedef struct VFSFileOps VFSFileOps;
+typedef struct InodeOps InodeOps;
+typedef struct File File;
 
-// typedef struct FileSystemTreeNode {
-//     inode* node;
-//     struct FileSystemTreeNode** children;
-//     int num_children;
-// } FileSystemTreeNode;
+typedef struct VFSInode {
+    unsigned long inode_number;
+    size_t file_type; // dir or file
+    size_t file_size; 
+    size_t timestamp;
+    void   *inode_info; // handle data pointers/ block pointers 
+    struct VFSFileOps* f_op; // read, write, lookup, etc.
+    struct InodeOps* i_op; //
+}VFSInode;
 
-// typedef struct MountedFileSystem {
-//     char mount_path[64];                  // e.g. "/mnt/minifs"
-//     FileSystemTreeNode* root;             // Tree of all inodes
-//     RegisteredDriver* driver;             // FS driver (minifs, cramfs, etc.)
-//     BlockDevice* block_device;            // Only needed for block-based FS
-// } MountedFileSystem;
+typedef struct InodeOps {
+    VFSInode* (*lookup)(const char* name); // find file by name
+    // VFSInode** (*read_dir)(const char* name); // return array of vfsinodes if directory
+    // // called in context where we can build direntrys from then, arr[0] first part of path etc
+    // VFSInode* (*create)(const char* name); // create new file
+    // VFSInode* (*link)(const char* name); // creating hard link
+    // VFSInode* (*unlink)(const char* name); // removing file or dir
+    // VFSInode* (*symlink)(const char* name); //create symlink
+    // VFSInode* (*mkdir)(const char* name); // create new dir
+} InodeOps;
+
+typedef struct VFSFileOps {
+    File*         (*open)(VFSInode* node, int flags);
+    size_t        (*read)(File* f, void* buf, size_t len);
+    size_t        (*write)(File* f, const void* buf, size_t len);
+    int           (*close)(File* f);
+} VFSFileOps;
+
+// gonna have the driver handle the opening of fd to the disk img or the blob
+typedef struct VFSSuperBlock {
+    unsigned char           s_dirt;             /* dirty flag */
+    char                    *s_type;            /* filesystem type */
+    struct VFSSuperOps      *s_op;              /* superblock methods */
+    unsigned long           s_magic;            /* filesystem’s magic number */
+    struct DirEntry         *s_root;            /* directory mount point */
+    void                    *s_fs_info;         /* filesystem private info */
+}VFSSuperBlock;
+
+typedef struct VFSSuperOps {
+       int (*write_inode) (struct inode *);
+       struct inode *(*alloc_inode)(struct super_block *sb);
+       void (*destroy_inode)(struct inode *);
+}VFSSuperOps;
+
+typedef struct File{
+    unsigned long id;
+    char filename[64];
+    VFSInode* node;
+    size_t cursor_postion; // offset to where we are pointing to. Can use this as ofset into blob and block num maybe
+    unsigned long flags;
+}File;
+
+typedef struct Dentry {
+    char name[MAX_NAME];
+    struct VFSInode *inode;
+    struct Dentry **children;
+    int num_children;
+    int children_populated_flag; // bool
+} Dentry;
 
 // registered drivers on the system, hardcoded at this point
 typedef struct RegisteredDriver{
     char name[16];
-    int magic_bytes;
+    unsigned long magic_bytes;
     struct FileSystemDriver* fsd;
 } RegisteredDriver;
 
-typedef struct MountedFileSystem{
-    char mount_path[64];
-    inode* root;
-    RegisteredDriver* driver;
-    BlockDevice* block_device;
+typedef struct MountedFileSystem {
+    char mount_path[64];                  // e.g. "/mnt/minifs"
+    RegisteredDriver* driver;             // FS driver (minifs, cramfs, etc.)
+    VFSInode* root_inode;
+    VFSSuperBlock* super_block;
 } MountedFileSystem;
 
-extern file* fd_table[MAX_OPEN_FILES];
+
+// call read_dir to get list of DirEntrys
+typedef struct FileSystemDriver {
+    VFSInode* (*mount)(); // return root inode
+    VFSSuperBlock* (*fill_super)(void*); // fill super block out
+    void (*unmount)(VFSInode* root);
+}FileSystemDriver;
+
+extern File* fd_table[MAX_OPEN_FILES];
 extern RegisteredDriver driver_table[MAX_DRIVERS];
 extern MountedFileSystem mount_table[MAX_MOUNTED_FILESYSTEMS];
 
-extern int driver_count;
-extern int mount_count;
-extern int fd_count;
+extern unsigned long driver_count;
+extern unsigned long mount_count;
+extern unsigned long fd_count;
 
-void vfs_register_driver(const char* name, int magic_bytes, struct FileSystemDriver* fsd);
-void vfs_mount(char* mount_path, char* img_path, void* blob);
+void vfs_register_driver(const char* name, unsigned long magic_bytes, struct FileSystemDriver* fsd);
+void vfs_mount(char* mount_path, char* filesystem_name, void* filesystem);
 void vfs_unmount(char* mount_path);
-file* vfs_open(char* path, int flags);
-size_t vfs_read(file* fd, void* buf, size_t size);
-int vfs_close(file** fd);
-RegisteredDriver* get_driver(int magic_num);
+File* vfs_open(char* path, int flags);
+size_t vfs_read(File* fd, void* buf, size_t size);
+int vfs_close(File** fd);
+RegisteredDriver* get_driver(char* fs_name);
 
 /*
 For performance I want to implement a cache for inodes and filenames so
 that I dont have to parse from root all the time
+*/
+
+/*
+For our tree, we are going to build nodes based on whats accessed not all on mount
+which will basically be our cache since itll be in RAM and faster than disk
+
+if cramfs magic num, we just read the whole blob and make the whole tree on mount
+else block then we dont do that
 */
 
 #endif /*VFS_LITE*/

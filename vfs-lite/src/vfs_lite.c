@@ -3,35 +3,18 @@
 #include <string.h>
 #include "vfs_lite.h" 
 
-file* fd_table[MAX_OPEN_FILES];
+File* fd_table[MAX_OPEN_FILES];
 RegisteredDriver driver_table[MAX_DRIVERS];
 MountedFileSystem mount_table[MAX_MOUNTED_FILESYSTEMS];
 
-int driver_count = 0;
-int mount_count = 0;
-int fd_count = 0;
+unsigned long driver_count = 0;
+unsigned long mount_count = 0;
+unsigned long fd_count = 0;
 
-// need to add a reset function for the fd file posistion ptr
-
-size_t vfs_read(file* fd, void* buf, size_t size){
-    if(fd == NULL){
-        printf("[-] File Descriptor is invalid\n");
-        return -1;
-    }
-    if((fd->node->size - fd->file_postion) < size){ // if file posistion is moved up then different size
-        return fd->node->fops->read(fd, buf, (fd->node->size - fd->file_postion));
-    }
-    else if(fd->node->size < size){ // if the file size is less than asking size
-        return fd->node->fops->read(fd, buf, fd->node->size);
-    }
-    else{ // if size is less than file size
-        return fd->node->fops->read(fd, buf, size);
-    }
-}
 
 // drivers can call this, and it fills the vfs array of registered drivers in the vfs.h file
 // have to call extern func from drivers to send back the mount and unmount functions
-void vfs_register_driver(const char* name, int magic_num, struct FileSystemDriver* fsd) {
+void vfs_register_driver(const char* name, unsigned long magic_num, struct FileSystemDriver* fsd) {
     if (driver_count < MAX_DRIVERS) {
         snprintf(driver_table[driver_count].name, 15, "%s", name);
         driver_table[driver_count].fsd = fsd;
@@ -40,78 +23,27 @@ void vfs_register_driver(const char* name, int magic_num, struct FileSystemDrive
     }
 }
 
-void vfs_unmount(char* mount_path){
-    MountedFileSystem* filesystem_to_unmount = NULL;
-    char* mntpath_ptr = NULL;
-    // find fs type
-    for(int i = 0; i < mount_count; i++){
-        if((mntpath_ptr = strstr(mount_path, mount_table[i].mount_path)) != NULL){
-            filesystem_to_unmount = &mount_table[i];
-        }
-    }
+// we want to add a MountedFileSystem. So we need the driver, superblock, root_inode
+// how do we know what driver!!! Magic num needs to read into data
+// so mount should already have the data passed into of the filesystem type
+// filesystem can be a blob or a file path to a physical device or disk img based on name
+void vfs_mount(char* mount_path, char* filesystem_name, void* filesystem){
 
-    if(mntpath_ptr == NULL){
-        printf("[-] Filesystem is not mounted before trying to open!\n");
-        return NULL;
-    }
-
-    filesystem_to_unmount->driver->fsd->unmount(filesystem_to_unmount->root);
-
-    memset(filesystem_to_unmount, 0, sizeof(MountedFileSystem));
-    mount_count--;
-}
-
-void vfs_mount(char* mount_path, char* img_path, void* blob){
-    int magic_num = 0;
-    int block_fd;
-    FileSystemSource* source = malloc(sizeof(FileSystemSource));
-
-    if(img_path == NULL){
-        if(blob == NULL){
-            printf("[-] Need to pass in a blob filesystem for this!");
-            return;
-        }
-        magic_num = *(int*)blob;
-        source->blob = blob;
-        source->type = SOURCE_TYPE_BLOB;
-    }
-    else{
-        block_fd = open(img_path, O_RDWR);
-        if (block_fd < 0) {
-            perror("Failed to open disk image");
-            return 1;
-        }
-        pread(block_fd, &magic_num, sizeof(int), 0);
-        source->fd = block_fd;
-        source->type = SOURCE_TYPE_BLOCK;
-    }
-
-    RegisteredDriver* reg_driver = get_driver(magic_num);
+    RegisteredDriver* reg_driver = get_driver(filesystem_name);
     if (reg_driver == NULL){
             printf("[-] Driver for this filesystem is not registered yet!\n");
             return;
     }
 
     if(mount_count < MAX_MOUNTED_FILESYSTEMS){
-            BlockDevice* block_device = (BlockDevice*)calloc(1, sizeof(BlockDevice));
-            inode* root_node = reg_driver->fsd->mount(source);
-
-            if (img_path != NULL){
-                block_device->block_fd = block_fd;
-                block_device->root_inode = root_node;
-            }
-
-            if (root_node == NULL){
-                printf("[-] Driver mount failed!\n");
-                return;
-            }
+            VFSInode* root_node = reg_driver->fsd->mount(filesystem);
 
             for(int i = 0; i < MAX_MOUNTED_FILESYSTEMS; i++){
-                if(mount_table[i].root == NULL){
+                if(mount_table[i].root_inode == NULL){
                     mount_table[mount_count].driver = reg_driver;
                     snprintf(mount_table[mount_count].mount_path, 63, "%s", mount_path);
-                    mount_table[mount_count].root = root_node;
-                    mount_table[mount_count].block_device = block_device; // can be null
+                    mount_table[mount_count].root_inode = root_node;
+                    mount_table[mount_count].super_block = reg_driver->fsd->fill_super(filesystem);
                     mount_count++;
                     break;
                 }
@@ -119,7 +51,50 @@ void vfs_mount(char* mount_path, char* img_path, void* blob){
     }
 }
 
-file* vfs_open(char* path, int flags){
+// need to add a reset function for the fd file posistion ptr
+
+// size_t vfs_read(File* fd, void* buf, size_t size){
+//     if(fd == NULL){
+//         printf("[-] File Descriptor is invalid\n");
+//         return -1;
+//     }
+//     if((fd->node->size - fd->cursor_postion) < size){ // if file posistion is moved up then different size
+//         return fd->node->fops->read(fd, buf, (fd->node->size - fd->cursor_postion));
+//     }
+//     else if(fd->node->size < size){ // if the file size is less than asking size
+//         return fd->node->fops->read(fd, buf, fd->node->size);
+//     }
+//     else{ // if size is less than file size
+//         return fd->node->fops->read(fd, buf, size);
+//     }
+// }
+
+// void vfs_unmount(char* mount_path){
+//     MountedFileSystem* filesystem_to_unmount = NULL;
+//     char* mntpath_ptr = NULL;
+//     // find fs type
+//     for(int i = 0; i < mount_count; i++){
+//         if((mntpath_ptr = strstr(mount_path, mount_table[i].mount_path)) != NULL){
+//             filesystem_to_unmount = &mount_table[i];
+//         }
+//     }
+
+//     if(mntpath_ptr == NULL){
+//         printf("[-] Filesystem is not mounted before trying to open!\n");
+//         return NULL;
+//     }
+
+//     filesystem_to_unmount->driver->fsd->unmount(filesystem_to_unmount->root);
+
+//     memset(filesystem_to_unmount, 0, sizeof(MountedFileSystem));
+//     mount_count--;
+// }
+
+// we need to go through the dirents and build dentry and update a tree that will be
+// in the superblock. We use lookup from the driver to get the next inode for us
+// and send back that inode which we wrap in a dentry
+// how do we handle children and num children?
+File* vfs_open(char* path, int flags){
     // call vfs_lookup till I find the right file
     // call the inode open I get back for that file
     MountedFileSystem* curr_filesystem = NULL;
@@ -136,15 +111,16 @@ file* vfs_open(char* path, int flags){
         return NULL;
     }
 
+    // not include the mnt path into the file path I am looking for once we know the fs
     char* file_path = mntpath_ptr + strlen(curr_filesystem->mount_path)-1;
 
     printf("FILE PATH: %s\n", file_path);
 
-    inode* node = curr_filesystem->root->fops->lookup(file_path);
+    VFSInode* node = curr_filesystem->root_inode->i_op->lookup(file_path);
 
-    file* fd;
+    File* fd;
     if(fd_count < MAX_OPEN_FILES){
-        fd = node->fops->open(node,flags);
+        fd = node->f_op->open(node,flags);
         if (fd == NULL){
             printf("[-] Failed to open the file, driver open died");
             return NULL;
@@ -167,21 +143,21 @@ file* vfs_open(char* path, int flags){
     return fd;
 }
 
-int vfs_close(file** fd){
+// int vfs_close(File** fd){
 
-    int id = (*fd)->id;
-    free(*fd);
-    fd_table[id] = NULL;
-    *fd = NULL; 
+//     int id = (*fd)->id;
+//     free(*fd);
+//     fd_table[id] = NULL;
+//     *fd = NULL; 
 
-    fd_count--;
-    return 0;
-}
+//     fd_count--;
+//     return 0;
+// }
 
 
-RegisteredDriver* get_driver(int magic_num){
-   for(int i = 0; i < driver_count; i++){
-        if(magic_num == driver_table[i].magic_bytes){
+RegisteredDriver* get_driver(char* fs_name){
+   for(int i = 0; i < driver_count; i ++){
+        if((strcmp(driver_table[i].name, fs_name)) == 0){
             return &driver_table[i];
         }
    }

@@ -19,8 +19,9 @@ extern void* cramfs_build_blob(); // this would not be here, the blob would be g
 VFSInode* cramfs_get_root_inode(void* blob, VFSSuperBlock* vfs_super_block); // File* cramfs_open(Inode* node, int flags);
 // size_t cramfs_read(File* f, void* buf, size_t len);
 // Inode* cramfs_lookup(char* file_path);
-VFSInode* cramfs_mount(void* blob);
+VFSSuperBlock* cramfs_mount(void* blob);
 VFSSuperBlock* cramfs_fill_super(void* blob);
+DirEntry* cramfs_make_direnty(void* blob, VFSInode* inode);
 // void cramfs_unmount(); // this needs to free all of the memory
 // FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id);
 // void print_tree(FileSystemTreeNode* node);
@@ -41,14 +42,14 @@ static VFSSuperOps cramfs_super_op = {
     .destroy_inode = NULL,
 };
 
-static VFSFileOps cramfs_op = {
+static FileOps cramfs_op = {
     .open = NULL,
     .read = NULL,
     .write = NULL,
     .close = NULL
 };
 
-static InodeOps cramfs_inode_op = {
+static InodeDirOps cramfs_dir_inode_op = {
     .lookup = NULL,
 };
 
@@ -56,17 +57,16 @@ typedef struct __attribute__((packed)) CramfsInode{
     size_t id;
     size_t type; // dir or file
     size_t data_size; 
-    size_t data_offset; // data offset into the blob
-    char path[MAX_FILE_PATH];
+    size_t data_offset; // data offset into the blob or to dirents
 }CramfsInode;
 
 // these are all for building the blob, not really needed here
 static CramfsInode blob_inode_table[NUM_INODES]; // chapters
 
+// name and inode link, then you search the data block of the inode to find dirents
 typedef struct __attribute__((packed)) CramfsDirent{ // index of names
-    size_t node;
-    size_t num_inodes;
-    size_t inodes[2];
+    size_t inode_number;
+    char name[MAX_NAME];
 } CramfsDirent;
 
 typedef struct __attribute__((packed)) CramfsSuperBlock{ // table of contents

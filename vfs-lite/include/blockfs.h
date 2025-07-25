@@ -1,5 +1,3 @@
-#include "driver.h"
-
 #define DRIVER_NAME "blockfs"
 #define MAGIC_NUM 0x4D465346 
 #define BLOCK_SIZE 512

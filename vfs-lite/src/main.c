@@ -22,7 +22,7 @@ int main(){
     printf("Driver name: %s\n", mount_table[0].driver->name);
     printf("Magic: %x\n", mount_table[0].driver->magic_bytes);
 
-    File* fd = vfs_open("/mnt/cramfs/hello.txt", O_RDONLY);
+    File* fd = vfs_open("/mnt/cramfs/docs/readme.md", O_RDONLY);
 
     // void* buf = malloc(40);
 

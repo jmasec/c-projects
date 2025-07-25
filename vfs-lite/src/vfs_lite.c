@@ -36,14 +36,14 @@ void vfs_mount(char* mount_path, char* filesystem_name, void* filesystem){
     }
 
     if(mount_count < MAX_MOUNTED_FILESYSTEMS){
-            VFSInode* root_node = reg_driver->fsd->mount(filesystem);
+            VFSSuperBlock* super_block = reg_driver->fsd->mount(filesystem);
 
             for(int i = 0; i < MAX_MOUNTED_FILESYSTEMS; i++){
                 if(mount_table[i].root_inode == NULL){
                     mount_table[mount_count].driver = reg_driver;
                     snprintf(mount_table[mount_count].mount_path, 63, "%s", mount_path);
-                    mount_table[mount_count].root_inode = root_node;
-                    mount_table[mount_count].super_block = reg_driver->fsd->fill_super(filesystem);
+                    mount_table[mount_count].root_inode = super_block->s_root->node;
+                    mount_table[mount_count].super_block = super_block;
                     mount_count++;
                     break;
                 }
@@ -94,54 +94,54 @@ void vfs_mount(char* mount_path, char* filesystem_name, void* filesystem){
 // in the superblock. We use lookup from the driver to get the next inode for us
 // and send back that inode which we wrap in a dentry
 // how do we handle children and num children?
-File* vfs_open(char* path, int flags){
-    // call vfs_lookup till I find the right file
-    // call the inode open I get back for that file
-    MountedFileSystem* curr_filesystem = NULL;
-    char* mntpath_ptr = NULL;
-    // find fs type
-    for(int i = 0; i < mount_count; i++){
-        if((mntpath_ptr = strstr(path, mount_table[i].mount_path)) != NULL){
-            curr_filesystem = &mount_table[i];
-        }
-    }
+// File* vfs_open(char* path, int flags){
+//     // call vfs_lookup till I find the right file
+//     // call the inode open I get back for that file
+//     MountedFileSystem* curr_filesystem = NULL;
+//     char* mntpath_ptr = NULL;
+//     // find fs type
+//     for(int i = 0; i < mount_count; i++){
+//         if((mntpath_ptr = strstr(path, mount_table[i].mount_path)) != NULL){
+//             curr_filesystem = &mount_table[i];
+//         }
+//     }
 
-    if(mntpath_ptr == NULL){
-        printf("[-] Filesystem is not mounted before trying to open!\n");
-        return NULL;
-    }
+//     if(mntpath_ptr == NULL){
+//         printf("[-] Filesystem is not mounted before trying to open!\n");
+//         return NULL;
+//     }
 
-    // not include the mnt path into the file path I am looking for once we know the fs
-    char* file_path = mntpath_ptr + strlen(curr_filesystem->mount_path)-1;
+//     // not include the mnt path into the file path I am looking for once we know the fs
+//     char* file_path = mntpath_ptr + strlen(curr_filesystem->mount_path)-1;
 
-    printf("FILE PATH: %s\n", file_path);
+//     printf("FILE PATH: %s\n", file_path);
 
-    VFSInode* node = curr_filesystem->root_inode->i_op->lookup(file_path);
+//     VFSInode* node = curr_filesystem->root_inode->i_op->lookup(file_path);
 
-    File* fd;
-    if(fd_count < MAX_OPEN_FILES){
-        fd = node->f_op->open(node,flags);
-        if (fd == NULL){
-            printf("[-] Failed to open the file, driver open died");
-            return NULL;
-        }
-        // look for empty fd slot
-        for(int i = 0; i < MAX_OPEN_FILES; i++){
-            if (fd_table[i] == NULL) {
-                fd->id = i;
-                fd_table[i] = fd;
-                fd_count++;
-                break;
-            }
-        }
-    }
-    else{
-        printf("[-] Out of open file descriptors");
-        return NULL;
-    }
+//     File* fd;
+//     if(fd_count < MAX_OPEN_FILES){
+//         fd = node->f_op->open(node,flags);
+//         if (fd == NULL){
+//             printf("[-] Failed to open the file, driver open died");
+//             return NULL;
+//         }
+//         // look for empty fd slot
+//         for(int i = 0; i < MAX_OPEN_FILES; i++){
+//             if (fd_table[i] == NULL) {
+//                 fd->id = i;
+//                 fd_table[i] = fd;
+//                 fd_count++;
+//                 break;
+//             }
+//         }
+//     }
+//     else{
+//         printf("[-] Out of open file descriptors");
+//         return NULL;
+//     }
 
-    return fd;
-}
+//     return fd;
+// }
 
 // int vfs_close(File** fd){
 

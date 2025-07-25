@@ -14,8 +14,8 @@
 #include <stdint.h>
 
 typedef struct DirEntry DirEntry;
-typedef struct VFSFileOps VFSFileOps;
-typedef struct InodeOps InodeOps;
+typedef struct FileOps FileOps;
+typedef struct InodeDirOps InodeDirOps;
 typedef struct File File;
 
 typedef struct VFSInode {
@@ -23,13 +23,13 @@ typedef struct VFSInode {
     size_t file_type; // dir or file
     size_t file_size; 
     size_t timestamp;
-    void   *inode_info; // handle data pointers/ block pointers 
-    struct VFSFileOps* f_op; // read, write, lookup, etc.
-    struct InodeOps* i_op; //
+    void   *inode_info; // handle data pointers/ block pointers, for dirs they hold ptrs to directory entry block
+    struct FileOps* f_op; // read, write, lookup, etc.
+    struct InodeDirOps* i_op; //
 }VFSInode;
 
-typedef struct InodeOps {
-    VFSInode* (*lookup)(const char* name); // find file by name
+typedef struct InodeDirOps {
+    VFSInode* (*lookup)(VFSInode *dir, const char* name); // find file by name
     // VFSInode** (*read_dir)(const char* name); // return array of vfsinodes if directory
     // // called in context where we can build direntrys from then, arr[0] first part of path etc
     // VFSInode* (*create)(const char* name); // create new file
@@ -37,14 +37,20 @@ typedef struct InodeOps {
     // VFSInode* (*unlink)(const char* name); // removing file or dir
     // VFSInode* (*symlink)(const char* name); //create symlink
     // VFSInode* (*mkdir)(const char* name); // create new dir
-} InodeOps;
+} InodeDirOps;
 
-typedef struct VFSFileOps {
+typedef struct FileOps {
     File*         (*open)(VFSInode* node, int flags);
     size_t        (*read)(File* f, void* buf, size_t len);
     size_t        (*write)(File* f, const void* buf, size_t len);
     int           (*close)(File* f);
-} VFSFileOps;
+} FileOps;
+
+// handle all of the tree operations
+typedef struct DirEntryOps {
+    void          (*d_lookup)(void);
+    void          (*d_hash)(void);
+} DirEntryOps;
 
 // gonna have the driver handle the opening of fd to the disk img or the blob
 typedef struct VFSSuperBlock {
@@ -70,13 +76,14 @@ typedef struct File{
     unsigned long flags;
 }File;
 
-typedef struct Dentry {
+typedef struct DirEntry {
+    VFSInode* node;
+    DirEntry* parent;
     char name[MAX_NAME];
-    struct VFSInode *inode;
-    struct Dentry **children;
-    int num_children;
-    int children_populated_flag; // bool
-} Dentry;
+    DirEntryOps* d_op;
+    VFSSuperBlock* d_superblock;
+    void* d_fs_info;
+} DirEntry;
 
 // registered drivers on the system, hardcoded at this point
 typedef struct RegisteredDriver{

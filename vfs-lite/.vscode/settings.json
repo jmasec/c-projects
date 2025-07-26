@@ -1,5 +1,14 @@
 {
     "files.associations": {
-        "typeinfo": "c"
+        "typeinfo": "c",
+        "bit": "c",
+        "compare": "c",
+        "concepts": "c",
+        "type_traits": "c",
+        "cmath": "c",
+        "limits": "c",
+        "new": "c",
+        "cramfs.h": "c",
+        "stddef.h": "c"
     }
 }

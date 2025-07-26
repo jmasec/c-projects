@@ -51,6 +51,76 @@ void vfs_mount(char* mount_path, char* filesystem_name, void* filesystem){
     }
 }
 
+// we need to go through the dirents and build dentry and update a tree that will be
+// in the superblock. We use lookup from the driver to get the next inode for us
+// and send back that inode which we wrap in a dentry
+// how do we handle children and num children?
+File* vfs_open(char* path, int flags){
+    // call vfs_lookup till I find the right file
+    // call the inode open I get back for that file
+    MountedFileSystem* curr_filesystem = NULL;
+    char* mntpath_ptr = NULL;
+
+    // find fs type
+    for(int i = 0; i < mount_count; i++){
+        if((mntpath_ptr = strstr(path, mount_table[i].mount_path)) != NULL){
+            curr_filesystem = &mount_table[i];
+        }
+    }
+    if(mntpath_ptr == NULL){
+        printf("[-] Filesystem is not mounted before trying to open!\n");
+        return NULL;
+    }
+    char* file_path;
+    // not include the mnt path into the file path I am looking for once we know the fs
+    char* file_path_ = mntpath_ptr + strlen(curr_filesystem->mount_path)-1;
+    snprintf(file_path, MAX_NAME, "%s", file_path_);
+
+    printf("FILE PATH: %s\n", file_path);
+
+    // we need to assume we have root taken care of at this point
+    // so on mount set up the hash table and we would fetch that from there
+    // but for now lets just lookup the root node, it should still handle it
+    // we should always have the root hashed and setup to fetch
+    // inode = hash_get("/") -> inode.lookup(inode, token)
+    // realisticaly the lookup would use the inode data offset/block num
+    // the use the filepath to strcmp with the names on the dirents in
+    // that data block or data blob
+
+    char*token = strtok(file_path, "/");
+
+    printf("TOKEN: %s\n", token);
+
+    // here we would call hash_get on the hash token, if its not there add it
+    // and then do a lookup to grab from disk, then after make the cache
+
+    VFSInode* node = curr_filesystem->root_inode->i_op->lookup(curr_filesystem->root_inode,file_path);
+
+    File* fd;
+    if(fd_count < MAX_OPEN_FILES){
+        fd = node->f_op->open(node,flags);
+        if (fd == NULL){
+            printf("[-] Failed to open the file, driver open died");
+            return NULL;
+        }
+        // look for empty fd slot
+        for(int i = 0; i < MAX_OPEN_FILES; i++){
+            if (fd_table[i] == NULL) {
+                fd->id = i;
+                fd_table[i] = fd;
+                fd_count++;
+                break;
+            }
+        }
+    }
+    else{
+        printf("[-] Out of open file descriptors");
+        return NULL;
+    }
+
+    return fd;
+}
+
 // need to add a reset function for the fd file posistion ptr
 
 // size_t vfs_read(File* fd, void* buf, size_t size){
@@ -90,58 +160,6 @@ void vfs_mount(char* mount_path, char* filesystem_name, void* filesystem){
 //     mount_count--;
 // }
 
-// we need to go through the dirents and build dentry and update a tree that will be
-// in the superblock. We use lookup from the driver to get the next inode for us
-// and send back that inode which we wrap in a dentry
-// how do we handle children and num children?
-// File* vfs_open(char* path, int flags){
-//     // call vfs_lookup till I find the right file
-//     // call the inode open I get back for that file
-//     MountedFileSystem* curr_filesystem = NULL;
-//     char* mntpath_ptr = NULL;
-//     // find fs type
-//     for(int i = 0; i < mount_count; i++){
-//         if((mntpath_ptr = strstr(path, mount_table[i].mount_path)) != NULL){
-//             curr_filesystem = &mount_table[i];
-//         }
-//     }
-
-//     if(mntpath_ptr == NULL){
-//         printf("[-] Filesystem is not mounted before trying to open!\n");
-//         return NULL;
-//     }
-
-//     // not include the mnt path into the file path I am looking for once we know the fs
-//     char* file_path = mntpath_ptr + strlen(curr_filesystem->mount_path)-1;
-
-//     printf("FILE PATH: %s\n", file_path);
-
-//     VFSInode* node = curr_filesystem->root_inode->i_op->lookup(file_path);
-
-//     File* fd;
-//     if(fd_count < MAX_OPEN_FILES){
-//         fd = node->f_op->open(node,flags);
-//         if (fd == NULL){
-//             printf("[-] Failed to open the file, driver open died");
-//             return NULL;
-//         }
-//         // look for empty fd slot
-//         for(int i = 0; i < MAX_OPEN_FILES; i++){
-//             if (fd_table[i] == NULL) {
-//                 fd->id = i;
-//                 fd_table[i] = fd;
-//                 fd_count++;
-//                 break;
-//             }
-//         }
-//     }
-//     else{
-//         printf("[-] Out of open file descriptors");
-//         return NULL;
-//     }
-
-//     return fd;
-// }
 
 // int vfs_close(File** fd){
 

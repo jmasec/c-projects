@@ -136,6 +136,7 @@ Move from the data blob I have to blocks of memory to be more realistic
 
 - I am gonna have the drivers use the structs from the VFS kernel side
 
+```
 int fd = open("/home/bob/file.txt", O_RDONLY);
 
 VFS Path Resolution Tree:
@@ -150,3 +151,19 @@ VFS Path Resolution Tree:
       |
    [dentry: "file.txt"] --> [inode: file]
 
+Start at root inode (0)
+→ type = DIR, direct[0] = 20
+
+Read block 20 (dirents):
+
+See "docs" → inode 2
+
+Inode 2 → type = DIR, direct[0] = 21
+
+Read block 21 (dirents):
+
+See "readme.md" → inode 3
+
+Inode 3 → type = FILE, direct[0] = 31
+→ read block 31 → "# Documentation"
+```

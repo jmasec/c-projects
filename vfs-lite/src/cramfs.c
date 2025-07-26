@@ -75,35 +75,33 @@ VFSInode* cramfs_get_root_inode(void* blob, VFSSuperBlock* vfs_super_block){
     vfs_inode->i_op = &cramfs_dir_inode_op;
     vfs_inode->timestamp = 0;
 
-    free(cramfs_super_block);
-    free(vfs_super_block);
-
     return vfs_inode;
 }
 
-// VFSInode* cramfs_lookup(char* file_path){
-//     if(root == NULL)return;
+// File* cramfs_open(VFSInode* node, int flags){
+//     char* tok = strtok(node->path, "/");
+//     File* fd = (File*)malloc(sizeof(File));
+//     snprintf(fd->filename, 63, "%s", tok);
+//     fd->node = node;
+//     fd->flags = flags;
+//     fd->cursor_postion = 0;
 
-//     FileSystemTreeNode* queue[MAX_QUEUE];
-//     size_t front = 0; //dequeue
-//     size_t rear = 0; // enqueue
-
-//     queue[rear++] = root;
-
-//     while (front < rear){
-//         FileSystemTreeNode* curr_node = queue[front++];
-
-//         if(strcmp(curr_node->node->path, file_path) == 0){
-//             return curr_node->node;
-//         }
-
-//         for(int i = 0; i < curr_node->num_children; i++){
-//             queue[rear++] = curr_node->children[i];
-//         }
-//     }
-//     return NULL;
-
+//     return fd;
 // }
+
+// take dir and node. 
+// check if node->type is file or dir
+// then if dir, we go to data offset and loop and look for
+// the dir name within the dirents, if none are found, grab the next
+// dir and return the dir->inode
+// then lookup again and do this recursively going down directory paths
+// then whenever we get a node back, we add to cache
+// if not dir and a file, then return that inode
+// before this we always check cache first
+VFSInode* cramfs_lookup(VFSInode* node, char* dir){
+    CramfsInode* c_inode = (CramfsInode*)node->inode_info;
+    CramfsDirent* dirent = (CramfsDirent*)c_inode->data_offset;
+}
 
 // void print_tree(FileSystemTreeNode* node){
 //     if (node == NULL) return;
@@ -141,17 +139,6 @@ VFSInode* cramfs_get_root_inode(void* blob, VFSSuperBlock* vfs_super_block){
 //     return len;
 // }
 
-// File* cramfs_open(VFSInode* node, int flags){
-//     char* tok = strtok(node->path, "/");
-//     File* fd = (File*)malloc(sizeof(File));
-//     snprintf(fd->filename, 63, "%s", tok);
-//     fd->node = node;
-//     fd->flags = flags;
-//     fd->cursor_postion = 0;
-
-//     return fd;
-// }
-
 // void cramfs_unmount(){
 //     free_tree(root);
 //     free(file_blob);
@@ -175,22 +162,6 @@ static inline void read_and_advance(void* dest, size_t size, char** ptr) {
     *ptr += size;
 }
 
-// FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id){
-//     if(node->num_children == 0){
-//         return;
-//     }
-
-//     for(int i = 0; i < node->num_children; i++){
-//         if(node->children[i]->node->id != id){
-//             // if its not our node, then grab that cild node and look at its children and do that for all children
-//             find_parent(node->children[i], id);
-//         }
-//         else{
-//             return node->children[i];
-//         }
-//     }
-// }
-
 
 void* cramfs_build_blob(){
     // "/", "/docs", "/hello.txt", "/docs/readme.md"
@@ -211,7 +182,7 @@ void* cramfs_build_blob(){
 
     blob_inode_table[0].id = 0;
     blob_inode_table[0].type = DIR;
-    blob_inode_table[0].data_size = 0;
+    blob_inode_table[0].data_size = 2; // on dir, its the num of dirents
     blob_inode_table[0].data_offset = sizeof(CramfsInode)*3;
 
     memcpy(write_ptr, &blob_inode_table[0], sizeof(CramfsInode));
@@ -219,7 +190,7 @@ void* cramfs_build_blob(){
 
     blob_inode_table[1].id = 1;
     blob_inode_table[1].type = DIR;
-    blob_inode_table[1].data_size = 0;
+    blob_inode_table[1].data_size = 1;
     blob_inode_table[1].data_offset = sizeof(CramfsInode)*2 + sizeof(CramfsDirent);
 
     memcpy(write_ptr, &blob_inode_table[1], sizeof(CramfsInode));
@@ -242,17 +213,26 @@ void* cramfs_build_blob(){
     write_ptr += sizeof(CramfsInode);
 
     CramfsDirent* d1 = (CramfsDirent*)malloc(sizeof(CramfsDirent));
-    d1->inode_number = 0;
-    snprintf(d1->name, MAX_NAME, "%s", "/");
+    // inode of docs
+    d1->inode_offset = sb->inode_table_offset + sizeof(CramfsInode);
+    snprintf(d1->name, MAX_NAME, "%s", "docs");
 
     memcpy(write_ptr, d1, sizeof(CramfsDirent));
     write_ptr += sizeof(CramfsDirent);
 
     CramfsDirent* d2 = (CramfsDirent*)malloc(sizeof(CramfsDirent));
-    d2->inode_number = 1;
-    snprintf(d2->name, MAX_NAME, "%s", "docs");
+    // inode of hello.txt -> points to the data of hello.txt
+    d2->inode_offset = sb->inode_table_offset + (sizeof(CramfsInode)*2);
+    snprintf(d2->name, MAX_NAME, "%s", "hello.txt");
 
     memcpy(write_ptr, d2, sizeof(CramfsDirent));
+    write_ptr += sizeof(CramfsDirent);
+
+    CramfsDirent* d3 = (CramfsDirent*)malloc(sizeof(CramfsDirent));
+    d3->inode_offset = sb->inode_table_offset + sizeof(CramfsInode);
+    snprintf(d3->name, MAX_NAME, "%s", "readme.md");
+
+    memcpy(write_ptr, d3, sizeof(CramfsDirent));
     write_ptr += sizeof(CramfsDirent);
 
     memcpy(write_ptr, "Hello, world!", 13);

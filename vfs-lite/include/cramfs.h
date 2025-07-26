@@ -18,7 +18,7 @@ extern void cramfs_register(); // fill out the
 extern void* cramfs_build_blob(); // this would not be here, the blob would be given already
 VFSInode* cramfs_get_root_inode(void* blob, VFSSuperBlock* vfs_super_block); // File* cramfs_open(Inode* node, int flags);
 // size_t cramfs_read(File* f, void* buf, size_t len);
-// Inode* cramfs_lookup(char* file_path);
+VFSInode* cramfs_lookup(VFSInode* node, char* dir);
 VFSSuperBlock* cramfs_mount(void* blob);
 VFSSuperBlock* cramfs_fill_super(void* blob);
 DirEntry* cramfs_make_direnty(void* blob, VFSInode* inode);
@@ -65,7 +65,7 @@ static CramfsInode blob_inode_table[NUM_INODES]; // chapters
 
 // name and inode link, then you search the data block of the inode to find dirents
 typedef struct __attribute__((packed)) CramfsDirent{ // index of names
-    size_t inode_number;
+    size_t inode_offset;
     char name[MAX_NAME];
 } CramfsDirent;
 

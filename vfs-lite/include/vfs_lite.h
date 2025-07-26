@@ -4,14 +4,14 @@
 #define MAX_OPEN_FILES 256
 #define MAX_MOUNTED_FILESYSTEMS 10
 #define MAX_DRIVERS 8
-#define MAX_FILE_PATH 50
-#define MAX_INODES 10
-#define MAX_DIRENTRY 10
 #define MAX_NAME 255
+#define MAX_FILES 255
 
 #include <stddef.h>
 #include <fcntl.h>
 #include <stdint.h>
+#include <string.h>
+#include "hash_table.h"
 
 typedef struct DirEntry DirEntry;
 typedef struct FileOps FileOps;
@@ -24,8 +24,8 @@ typedef struct VFSInode {
     size_t file_size; 
     size_t timestamp;
     void   *inode_info; // handle data pointers/ block pointers, for dirs they hold ptrs to directory entry block
-    struct FileOps* f_op; // read, write, lookup, etc.
-    struct InodeDirOps* i_op; //
+    struct FileOps* f_op; // read, write, etc.
+    struct InodeDirOps* i_op; // lookup
 }VFSInode;
 
 typedef struct InodeDirOps {
@@ -46,10 +46,10 @@ typedef struct FileOps {
     int           (*close)(File* f);
 } FileOps;
 
-// handle all of the tree operations
+// handle all of the tree operations or hash operations depending
 typedef struct DirEntryOps {
     void          (*d_lookup)(void);
-    void          (*d_hash)(void);
+    void          (*d_hash)(const char* name, DirEntry* direntry);
 } DirEntryOps;
 
 // gonna have the driver handle the opening of fd to the disk img or the blob
@@ -97,6 +97,7 @@ typedef struct MountedFileSystem {
     RegisteredDriver* driver;             // FS driver (minifs, cramfs, etc.)
     VFSInode* root_inode;
     VFSSuperBlock* super_block;
+    HT hash_table;
 } MountedFileSystem;
 
 

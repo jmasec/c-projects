@@ -18,7 +18,7 @@ extern void cramfs_register(); // fill out the
 extern void* cramfs_build_blob(); // this would not be here, the blob would be given already
 VFSInode* cramfs_get_root_inode(void* blob, VFSSuperBlock* vfs_super_block); // File* cramfs_open(Inode* node, int flags);
 // size_t cramfs_read(File* f, void* buf, size_t len);
-VFSInode* cramfs_lookup(VFSInode* node, char* dir);
+VFSInode* cramfs_lookup(VFSInode* node, char* file);
 VFSSuperBlock* cramfs_mount(void* blob);
 VFSSuperBlock* cramfs_fill_super(void* blob);
 DirEntry* cramfs_make_direnty(void* blob, VFSInode* inode);
@@ -26,6 +26,7 @@ DirEntry* cramfs_make_direnty(void* blob, VFSInode* inode);
 // FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id);
 // void print_tree(FileSystemTreeNode* node);
 static inline void read_and_advance(void* dest, size_t size, char** ptr);
+File* cramfs_open(VFSInode* node, int flags, char* filename);
 // Inode* build_inode(char** ptr);
 
 // define global for tree structure, any other structs I need
@@ -43,20 +44,20 @@ static VFSSuperOps cramfs_super_op = {
 };
 
 static FileOps cramfs_op = {
-    .open = NULL,
+    .open = cramfs_open,
     .read = NULL,
     .write = NULL,
     .close = NULL
 };
 
 static InodeDirOps cramfs_dir_inode_op = {
-    .lookup = NULL,
+    .lookup = cramfs_lookup,
 };
 
 typedef struct __attribute__((packed)) CramfsInode{
     size_t id;
     size_t type; // dir or file
-    size_t data_size; 
+    size_t data_size;
     size_t data_offset; // data offset into the blob or to dirents
 }CramfsInode;
 
@@ -77,6 +78,8 @@ typedef struct __attribute__((packed)) CramfsSuperBlock{ // table of contents
     size_t num_inodes;
     size_t start_data_block_offset;
 }CramfsSuperBlock;
+
+VFSInode* cramfs_make_vfsinode(CramfsInode* inode, VFSSuperBlock* sb);
 
 
 #endif /*CRAMFS*/

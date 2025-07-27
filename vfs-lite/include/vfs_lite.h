@@ -17,12 +17,14 @@ typedef struct DirEntry DirEntry;
 typedef struct FileOps FileOps;
 typedef struct InodeDirOps InodeDirOps;
 typedef struct File File;
+typedef struct VFSSuperBlock VFSSuperBlock;
 
 typedef struct VFSInode {
     unsigned long inode_number;
     size_t file_type; // dir or file
     size_t file_size; 
     size_t timestamp;
+    VFSSuperBlock* sb;
     void   *inode_info; // handle data pointers/ block pointers, for dirs they hold ptrs to directory entry block
     struct FileOps* f_op; // read, write, etc.
     struct InodeDirOps* i_op; // lookup
@@ -40,7 +42,7 @@ typedef struct InodeDirOps {
 } InodeDirOps;
 
 typedef struct FileOps {
-    File*         (*open)(VFSInode* node, int flags);
+    File*         (*open)(VFSInode* node, int flags, char* filename);
     size_t        (*read)(File* f, void* buf, size_t len);
     size_t        (*write)(File* f, const void* buf, size_t len);
     int           (*close)(File* f);
@@ -52,21 +54,27 @@ typedef struct DirEntryOps {
     void          (*d_hash)(const char* name, DirEntry* direntry);
 } DirEntryOps;
 
+typedef struct FileSystemSource{
+    int fd;
+    void* blob;
+} FileSystemSource;
+
+typedef struct VFSSuperOps {
+       int (*write_inode) (struct inode *);
+       struct inode *(*alloc_inode)();
+       void (*destroy_inode)(struct inode *);
+}VFSSuperOps;
+
 // gonna have the driver handle the opening of fd to the disk img or the blob
 typedef struct VFSSuperBlock {
     unsigned char           s_dirt;             /* dirty flag */
     char                    *s_type;            /* filesystem type */
-    struct VFSSuperOps      *s_op;              /* superblock methods */
+    VFSSuperOps             *s_op;              /* superblock methods */
     unsigned long           s_magic;            /* filesystem’s magic number */
-    struct DirEntry         *s_root;            /* directory mount point */
+    DirEntry                *s_root;            /* directory mount point */
     void                    *s_fs_info;         /* filesystem private info */
+    FileSystemSource        *s_src;
 }VFSSuperBlock;
-
-typedef struct VFSSuperOps {
-       int (*write_inode) (struct inode *);
-       struct inode *(*alloc_inode)(struct super_block *sb);
-       void (*destroy_inode)(struct inode *);
-}VFSSuperOps;
 
 typedef struct File{
     unsigned long id;
@@ -97,7 +105,7 @@ typedef struct MountedFileSystem {
     RegisteredDriver* driver;             // FS driver (minifs, cramfs, etc.)
     VFSInode* root_inode;
     VFSSuperBlock* super_block;
-    HT hash_table;
+    HT *hash_table;
 } MountedFileSystem;
 
 
@@ -123,6 +131,8 @@ File* vfs_open(char* path, int flags);
 size_t vfs_read(File* fd, void* buf, size_t size);
 int vfs_close(File** fd);
 RegisteredDriver* get_driver(char* fs_name);
+VFSInode* get_inode_of_file(VFSInode* node, char* path, HT* hash_table);
+char* get_last_token(char* str, char delimiter);
 
 /*
 For performance I want to implement a cache for inodes and filenames so

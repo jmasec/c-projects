@@ -24,6 +24,11 @@ int main(){
 
     File* fd = vfs_open("/mnt/cramfs/docs/readme.md", O_RDONLY);
 
+    if(fd == NULL){
+        printf("Fail to open file");
+        return -1;
+    }
+
     // void* buf = malloc(40);
 
     // size_t ret = vfs_read(fd, buf, 10);

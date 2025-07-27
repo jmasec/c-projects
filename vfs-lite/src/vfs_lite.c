@@ -36,25 +36,26 @@ void vfs_mount(char* mount_path, char* filesystem_name, void* filesystem){
     }
 
     if(mount_count < MAX_MOUNTED_FILESYSTEMS){
-            VFSSuperBlock* super_block = reg_driver->fsd->mount(filesystem);
+        // need to make a direntry here and move from driver side
+        VFSSuperBlock* super_block = reg_driver->fsd->mount(filesystem);
 
-            for(int i = 0; i < MAX_MOUNTED_FILESYSTEMS; i++){
-                if(mount_table[i].root_inode == NULL){
-                    mount_table[mount_count].driver = reg_driver;
-                    snprintf(mount_table[mount_count].mount_path, 63, "%s", mount_path);
-                    mount_table[mount_count].root_inode = super_block->s_root->node;
-                    mount_table[mount_count].super_block = super_block;
-                    mount_count++;
-                    break;
-                }
+        for(int i = 0; i < MAX_MOUNTED_FILESYSTEMS; i++){
+            if(mount_table[i].root_inode == NULL){
+                mount_table[mount_count].driver = reg_driver;
+                snprintf(mount_table[mount_count].mount_path, 63, "%s", mount_path);
+                mount_table[mount_count].root_inode = super_block->s_root->node;
+                mount_table[mount_count].super_block = super_block;
+                mount_count++;
+                break;
             }
+        }
     }
 }
 
 // we need to go through the dirents and build dentry and update a tree that will be
 // in the superblock. We use lookup from the driver to get the next inode for us
 // and send back that inode which we wrap in a dentry
-// how do we handle children and num children?
+// we need another function that we can call recursivly for lookups
 File* vfs_open(char* path, int flags){
     // call vfs_lookup till I find the right file
     // call the inode open I get back for that file
@@ -67,16 +68,16 @@ File* vfs_open(char* path, int flags){
             curr_filesystem = &mount_table[i];
         }
     }
-    if(mntpath_ptr == NULL){
+    if(mntpath_ptr == NULL || curr_filesystem == NULL){
         printf("[-] Filesystem is not mounted before trying to open!\n");
         return NULL;
     }
-    char* file_path;
+    char* path_no_mnt;
     // not include the mnt path into the file path I am looking for once we know the fs
     char* file_path_ = mntpath_ptr + strlen(curr_filesystem->mount_path)-1;
-    snprintf(file_path, MAX_NAME, "%s", file_path_);
+    snprintf(path_no_mnt, MAX_NAME, "%s", file_path_);
 
-    printf("FILE PATH: %s\n", file_path);
+    printf("FILE PATH: %s\n", path_no_mnt);
 
     // we need to assume we have root taken care of at this point
     // so on mount set up the hash table and we would fetch that from there
@@ -86,19 +87,21 @@ File* vfs_open(char* path, int flags){
     // realisticaly the lookup would use the inode data offset/block num
     // the use the filepath to strcmp with the names on the dirents in
     // that data block or data blob
+    // // here we would call hash_get on the hash token, if its not there add it
+    // // and then do a lookup to grab from disk, then after make the cache
+    // VFSInode* node = curr_filesystem->root_inode->i_op->lookup(curr_filesystem->root_inode,file_path);
 
-    char*token = strtok(file_path, "/");
+    VFSInode* file_inode = get_inode_of_file(curr_filesystem->root_inode, path_no_mnt, curr_filesystem->hash_table);
 
-    printf("TOKEN: %s\n", token);
-
-    // here we would call hash_get on the hash token, if its not there add it
-    // and then do a lookup to grab from disk, then after make the cache
-
-    VFSInode* node = curr_filesystem->root_inode->i_op->lookup(curr_filesystem->root_inode,file_path);
+    if(NULL == file_inode){
+        printf("[-] File doesn't exist!\n");
+        return NULL;
+    }
 
     File* fd;
     if(fd_count < MAX_OPEN_FILES){
-        fd = node->f_op->open(node,flags);
+        char* filename = get_last_token(path_no_mnt, '/');
+        fd = file_inode->f_op->open(file_inode,flags,filename);
         if (fd == NULL){
             printf("[-] Failed to open the file, driver open died");
             return NULL;
@@ -119,6 +122,27 @@ File* vfs_open(char* path, int flags){
     }
 
     return fd;
+}
+
+VFSInode* get_inode_of_file(VFSInode* node, char* path, HT* hash_table){
+    // recursively call with node and next token until we find it
+    // we will be direntries everytime we get back an inode
+    char*token = strtok(path, "/");
+    VFSInode* tmp_node = node;
+
+     while (token != NULL) {
+        printf("Token: %s\n", token);
+        
+        tmp_node = node->i_op->lookup(tmp_node, token);
+        // build_direnty();
+        if(NULL == tmp_node){
+            return NULL;
+        }
+
+        token = strtok(NULL, "/");
+    }
+
+    return tmp_node;
 }
 
 // need to add a reset function for the fd file posistion ptr
@@ -180,5 +204,17 @@ RegisteredDriver* get_driver(char* fs_name){
         }
    }
    return NULL;
+}
+
+char* get_last_token(char* str, char delimiter) {
+    char* last_delimiter_pos = strrchr(str, delimiter);
+
+    if (last_delimiter_pos != NULL) {
+        // Delimiter found, return pointer to character after the last delimiter
+        return last_delimiter_pos + 1;
+    } else {
+        // Delimiter not found, the whole string is the last token
+        return str;
+    }
 }
 

@@ -44,6 +44,10 @@ VFSSuperBlock* cramfs_fill_super(void* blob){
         vfs_super_block->s_op = &cramfs_super_op;
         vfs_super_block->s_magic = MAGIC_BYTES;
         vfs_super_block->s_root = NULL;
+        FileSystemSource* fs = malloc(sizeof(FileSystemSource));
+        fs->blob = blob;
+        fs->fd = -1;
+        vfs_super_block->s_src = fs;
 
         printf("MAGIC NUM: %x\n", sb->magic_num);
         printf("size: %d\n", sb->blob_size);
@@ -74,20 +78,36 @@ VFSInode* cramfs_get_root_inode(void* blob, VFSSuperBlock* vfs_super_block){
     // check if type dir or file and set the right inode fop
     vfs_inode->i_op = &cramfs_dir_inode_op;
     vfs_inode->timestamp = 0;
+    vfs_inode->sb = vfs_super_block;
 
     return vfs_inode;
 }
 
-// File* cramfs_open(VFSInode* node, int flags){
-//     char* tok = strtok(node->path, "/");
-//     File* fd = (File*)malloc(sizeof(File));
-//     snprintf(fd->filename, 63, "%s", tok);
-//     fd->node = node;
-//     fd->flags = flags;
-//     fd->cursor_postion = 0;
+VFSInode* cramfs_make_vfsinode(CramfsInode* inode, VFSSuperBlock* sb){
+    VFSInode* vfs_inode = malloc(sizeof(VFSInode));
 
-//     return fd;
-// }
+    vfs_inode->file_type = DIR;
+    vfs_inode->file_size = inode->data_size;
+    vfs_inode->inode_number = inode->id;
+    vfs_inode->timestamp = 0;
+    vfs_inode->inode_info = inode;
+    vfs_inode->f_op = &cramfs_op;
+    vfs_inode->i_op = &cramfs_dir_inode_op;
+    vfs_inode->sb = sb;
+
+    return vfs_inode;
+}
+
+File* cramfs_open(VFSInode* node, int flags, char* filename){
+    char* tok = strtok(filename, "/");
+    File* fd = (File*)malloc(sizeof(File));
+    snprintf(fd->filename, 63, "%s", tok);
+    fd->node = node;
+    fd->flags = flags;
+    fd->cursor_postion = 0;
+
+    return fd;
+}
 
 // take dir and node. 
 // check if node->type is file or dir
@@ -97,10 +117,27 @@ VFSInode* cramfs_get_root_inode(void* blob, VFSSuperBlock* vfs_super_block){
 // then lookup again and do this recursively going down directory paths
 // then whenever we get a node back, we add to cache
 // if not dir and a file, then return that inode
-// before this we always check cache first
-VFSInode* cramfs_lookup(VFSInode* node, char* dir){
+VFSInode* cramfs_lookup(VFSInode* node, char* file){
     CramfsInode* c_inode = (CramfsInode*)node->inode_info;
-    CramfsDirent* dirent = (CramfsDirent*)c_inode->data_offset;
+    char* blob = (char*)node->sb->s_src->blob;
+    if(node->file_type == DIR){
+        for(int i = 0; i < c_inode->data_size; i++){
+            CramfsDirent* dirent = (CramfsDirent*)(blob + (c_inode->data_offset + (sizeof(CramfsDirent)*i)));
+            printf("Dirents %s\n",dirent->name);
+            printf("File %s\n",file);
+            if(strcmp(dirent->name, file) == 0){
+                // printf("HERE\n");
+                // printf("Dirents %s\n",dirent->name);
+                // printf("File %s\n",file);
+                return cramfs_make_vfsinode((CramfsInode*)(blob + dirent->inode_offset), (VFSSuperBlock*)node->sb);
+            }
+        }
+    }
+    else if (node->file_type == FILE){
+        return node;
+    }
+
+    return NULL;
 }
 
 // void print_tree(FileSystemTreeNode* node){
@@ -173,8 +210,8 @@ void* cramfs_build_blob(){
     sb->num_inodes = 4;
     sb->inode_table_offset = sizeof(CramfsSuperBlock);
     sb->dirent_table_offset = sizeof(CramfsSuperBlock) + sizeof(blob_inode_table);
-    sb->blob_size = sizeof(CramfsSuperBlock) + (sizeof(CramfsInode) * 4) + (sizeof(CramfsDirent)*2) + 13 + 15;
-    sb->start_data_block_offset = sizeof(CramfsSuperBlock) + (sizeof(CramfsInode) * 4) + (sizeof(CramfsDirent)*2);
+    sb->blob_size = sizeof(CramfsSuperBlock) + (sizeof(CramfsInode) * 4) + (sizeof(CramfsDirent)*3) + 13 + 15;
+    sb->start_data_block_offset = sizeof(CramfsSuperBlock) + (sizeof(CramfsInode) * 4) + (sizeof(CramfsDirent)*3);
 
     memcpy(write_ptr, sb, sizeof(CramfsSuperBlock));
  
@@ -183,7 +220,7 @@ void* cramfs_build_blob(){
     blob_inode_table[0].id = 0;
     blob_inode_table[0].type = DIR;
     blob_inode_table[0].data_size = 2; // on dir, its the num of dirents
-    blob_inode_table[0].data_offset = sizeof(CramfsInode)*3;
+    blob_inode_table[0].data_offset = sb->dirent_table_offset;
 
     memcpy(write_ptr, &blob_inode_table[0], sizeof(CramfsInode));
     write_ptr += sizeof(CramfsInode);
@@ -191,7 +228,7 @@ void* cramfs_build_blob(){
     blob_inode_table[1].id = 1;
     blob_inode_table[1].type = DIR;
     blob_inode_table[1].data_size = 1;
-    blob_inode_table[1].data_offset = sizeof(CramfsInode)*2 + sizeof(CramfsDirent);
+    blob_inode_table[1].data_offset = sb->dirent_table_offset + sizeof(CramfsDirent)*2;
 
     memcpy(write_ptr, &blob_inode_table[1], sizeof(CramfsInode));
     write_ptr += sizeof(CramfsInode);

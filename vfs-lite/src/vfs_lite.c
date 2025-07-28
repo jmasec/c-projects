@@ -124,44 +124,21 @@ File* vfs_open(char* path, int flags){
     return fd;
 }
 
-VFSInode* get_inode_of_file(VFSInode* node, char* path, HT* hash_table){
-    // recursively call with node and next token until we find it
-    // we will be direntries everytime we get back an inode
-    char*token = strtok(path, "/");
-    VFSInode* tmp_node = node;
-
-     while (token != NULL) {
-        printf("Token: %s\n", token);
-        
-        tmp_node = node->i_op->lookup(tmp_node, token);
-        // build_direnty();
-        if(NULL == tmp_node){
-            return NULL;
-        }
-
-        token = strtok(NULL, "/");
-    }
-
-    return tmp_node;
-}
 
 // need to add a reset function for the fd file posistion ptr
 
-// size_t vfs_read(File* fd, void* buf, size_t size){
-//     if(fd == NULL){
-//         printf("[-] File Descriptor is invalid\n");
-//         return -1;
-//     }
-//     if((fd->node->size - fd->cursor_postion) < size){ // if file posistion is moved up then different size
-//         return fd->node->fops->read(fd, buf, (fd->node->size - fd->cursor_postion));
-//     }
-//     else if(fd->node->size < size){ // if the file size is less than asking size
-//         return fd->node->fops->read(fd, buf, fd->node->size);
-//     }
-//     else{ // if size is less than file size
-//         return fd->node->fops->read(fd, buf, size);
-//     }
-// }
+size_t vfs_read(File* fd, void* buf, size_t size){
+    if(fd == NULL){
+        printf("[-] File Descriptor is invalid\n");
+        return -1;
+    }
+    if((fd->node->file_size - fd->cursor_postion) < size){ // if file posistion is moved up then different size
+        return fd->node->f_op->read(fd, buf, (fd->node->file_size - fd->cursor_postion));
+    }
+    else{ 
+        return fd->node->f_op->read(fd, buf, size);
+    }
+}
 
 // void vfs_unmount(char* mount_path){
 //     MountedFileSystem* filesystem_to_unmount = NULL;
@@ -185,17 +162,38 @@ VFSInode* get_inode_of_file(VFSInode* node, char* path, HT* hash_table){
 // }
 
 
-// int vfs_close(File** fd){
+int vfs_close(File** fd){
 
-//     int id = (*fd)->id;
-//     free(*fd);
-//     fd_table[id] = NULL;
-//     *fd = NULL; 
+    int id = (*fd)->id;
+    free(*fd);
+    fd_table[id] = NULL;
+    *fd = NULL; 
 
-//     fd_count--;
-//     return 0;
-// }
+    fd_count--;
+    return 0;
+}
 
+VFSInode* get_inode_of_file(VFSInode* node, char* path, HT* hash_table){
+    // we will be direntries everytime we get back an inode
+    // when checking the hashtable, we can pull out the closest Inode
+    // and search using that inode closet to the end of the path
+    char*token = strtok(path, "/");
+    VFSInode* tmp_node = node;
+
+     while (token != NULL) {
+        printf("Token: %s\n", token);
+        
+        tmp_node = tmp_node->i_op->lookup(tmp_node, token);
+        // build_direnty();
+        if(NULL == tmp_node){
+            return NULL;
+        }
+
+        token = strtok(NULL, "/");
+    }
+
+    return tmp_node;
+}
 
 RegisteredDriver* get_driver(char* fs_name){
    for(int i = 0; i < driver_count; i ++){

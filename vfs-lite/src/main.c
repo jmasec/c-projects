@@ -29,22 +29,23 @@ int main(){
         return -1;
     }
 
-    // void* buf = malloc(40);
+    char buf[50];
 
-    // size_t ret = vfs_read(fd, buf, 10);
+    size_t ret = vfs_read(fd, buf, 6);
 
-    // for (int i = 0; i < ret; i++) {
-    //     printf("char: %c \n", ((char*)buf)[i]);
-    // }
+    for (int i = 0; i < ret; i++) {
+        printf("char: %c \n", ((char*)buf)[i]);
+    }
 
-    // vfs_close(&fd);
+    ret = vfs_read(fd, buf, 5);
 
-    // void* buf2 = malloc(40);
+    for (int i = 0; i < ret; i++) {
+        printf("b char: %c \n", ((char*)buf)[i]);
+    }
 
-    // vfs_read(fd, buf2, 10);
+    vfs_close(&fd);
 
-    // free(buf);
-    // free(buf2);
+    vfs_read(fd, buf, 10);
 
     // vfs_unmount("/mnt/cramfs/");
 

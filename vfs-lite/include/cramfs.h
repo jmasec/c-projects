@@ -17,8 +17,8 @@
 extern void cramfs_register(); // fill out the 
 extern void* cramfs_build_blob(); // this would not be here, the blob would be given already
 VFSInode* cramfs_get_root_inode(void* blob, VFSSuperBlock* vfs_super_block); // File* cramfs_open(Inode* node, int flags);
-// size_t cramfs_read(File* f, void* buf, size_t len);
-VFSInode* cramfs_lookup(VFSInode* node, char* file);
+size_t cramfs_read(File* f, void* buf, size_t len);
+VFSInode* cramfs_lookup(VFSInode* node, const char* file);
 VFSSuperBlock* cramfs_mount(void* blob);
 VFSSuperBlock* cramfs_fill_super(void* blob);
 DirEntry* cramfs_make_direnty(void* blob, VFSInode* inode);
@@ -45,7 +45,7 @@ static VFSSuperOps cramfs_super_op = {
 
 static FileOps cramfs_op = {
     .open = cramfs_open,
-    .read = NULL,
+    .read = cramfs_read,
     .write = NULL,
     .close = NULL
 };

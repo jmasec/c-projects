@@ -47,9 +47,9 @@ int main(){
 
     vfs_read(fd, buf, 10);
 
-    // vfs_unmount("/mnt/cramfs/");
+    vfs_unmount("/mnt/cramfs/");
 
-    // File* fd2 = vfs_open("/mnt/cramfs/hello.txt", O_RDONLY);
+    File* fd2 = vfs_open("/mnt/cramfs/hello.txt", O_RDONLY);
 
     // blockfs_register();
 

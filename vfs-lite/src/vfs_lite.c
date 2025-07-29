@@ -38,6 +38,8 @@ void vfs_mount(char* mount_path, char* filesystem_name, void* filesystem){
     if(mount_count < MAX_MOUNTED_FILESYSTEMS){
         // need to make a direntry here and move from driver side
         VFSSuperBlock* super_block = reg_driver->fsd->mount(filesystem);
+        HT* table = init_ht();
+        ht_set(table, super_block->s_root->name, super_block->s_root);
 
         for(int i = 0; i < MAX_MOUNTED_FILESYSTEMS; i++){
             if(mount_table[i].root_inode == NULL){
@@ -45,6 +47,7 @@ void vfs_mount(char* mount_path, char* filesystem_name, void* filesystem){
                 snprintf(mount_table[mount_count].mount_path, 63, "%s", mount_path);
                 mount_table[mount_count].root_inode = super_block->s_root->node;
                 mount_table[mount_count].super_block = super_block;
+                mount_table[mount_count].hash_table = table;
                 mount_count++;
                 break;
             }
@@ -140,26 +143,28 @@ size_t vfs_read(File* fd, void* buf, size_t size){
     }
 }
 
-// void vfs_unmount(char* mount_path){
-//     MountedFileSystem* filesystem_to_unmount = NULL;
-//     char* mntpath_ptr = NULL;
-//     // find fs type
-//     for(int i = 0; i < mount_count; i++){
-//         if((mntpath_ptr = strstr(mount_path, mount_table[i].mount_path)) != NULL){
-//             filesystem_to_unmount = &mount_table[i];
-//         }
-//     }
+void vfs_unmount(char* mount_path){
+    MountedFileSystem* filesystem_to_unmount = NULL;
+    char* mntpath_ptr = NULL;
+    // find fs type
+    for(int i = 0; i < mount_count; i++){
+        if((mntpath_ptr = strstr(mount_path, mount_table[i].mount_path)) != NULL){
+            filesystem_to_unmount = &mount_table[i];
+        }
+    }
 
-//     if(mntpath_ptr == NULL){
-//         printf("[-] Filesystem is not mounted before trying to open!\n");
-//         return NULL;
-//     }
+    if(mntpath_ptr == NULL){
+        printf("[-] Filesystem is not mounted before trying to open!\n");
+        return NULL;
+    }
 
-//     filesystem_to_unmount->driver->fsd->unmount(filesystem_to_unmount->root);
+    filesystem_to_unmount->driver->fsd->unmount(filesystem_to_unmount->super_block);
 
-//     memset(filesystem_to_unmount, 0, sizeof(MountedFileSystem));
-//     mount_count--;
-// }
+    clear_hashtable(filesystem_to_unmount->hash_table);
+
+    memset(filesystem_to_unmount, 0, sizeof(MountedFileSystem));
+    mount_count--;
+}
 
 
 int vfs_close(File** fd){
@@ -214,5 +219,9 @@ char* get_last_token(char* str, char delimiter) {
         // Delimiter not found, the whole string is the last token
         return str;
     }
+}
+
+void clear_hashtable(HT* hash_table){
+    return;
 }
 

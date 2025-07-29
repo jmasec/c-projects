@@ -147,10 +147,11 @@ size_t cramfs_read(File* f, void* buf, size_t len){
     return len;
 }
 
-// void cramfs_unmount(){
-//     free_tree(root);
-//     free(file_blob);
-// }
+void cramfs_unmount(VFSSuperBlock* sb){
+    free(sb->s_fs_info);
+    free(sb->s_src);
+    free(sb);
+}
 
 
 static inline void read_and_advance(void* dest, size_t size, char** ptr) {

@@ -10,9 +10,8 @@ void cramfs_register(){
 VFSSuperBlock* cramfs_mount(void* blob){
     VFSSuperBlock* vfs_super_block = cramfs_fill_super(blob);
     VFSInode* root_inode = cramfs_get_root_inode(blob, vfs_super_block);
-    DirEntry* root_direntry = cramfs_make_direnty(blob, root_inode);
-    root_direntry->d_superblock = vfs_super_block;
-    vfs_super_block->s_root = root_direntry;
+    DirEntry* direntry = cramfs_make_direnty(blob, root_inode);
+    vfs_super_block->s_root = direntry;
     return vfs_super_block;
 }
 
@@ -21,7 +20,6 @@ DirEntry* cramfs_make_direnty(void* blob, VFSInode* inode){
     CramfsInode* cramfs_inode = (CramfsInode*)inode->inode_info;
     CramfsDirent* cramfs_dirent = (CramfsDirent*)blob + cramfs_inode->data_offset;
     direntry->node = inode;
-    direntry->parent = NULL;
     snprintf(direntry->name, MAX_NAME, "%s", cramfs_dirent->name);
     return direntry;
 }
@@ -65,9 +63,8 @@ VFSInode* cramfs_get_root_inode(void* blob, VFSSuperBlock* vfs_super_block){
     inode_table_ptr = (char*)blob + cramfs_super_block->inode_table_offset;
 
     VFSInode* vfs_inode = malloc(sizeof(VFSInode));
-    CramfsInode* cramfs_inode = malloc(sizeof(CramfsInode));
 
-    cramfs_inode = (CramfsInode*)inode_table_ptr;
+    CramfsInode* cramfs_inode = (CramfsInode*)inode_table_ptr;
 
     vfs_inode->inode_info = cramfs_inode;
 
@@ -100,7 +97,7 @@ VFSInode* cramfs_make_vfsinode(CramfsInode* inode, VFSSuperBlock* sb){
 
 File* cramfs_open(VFSInode* node, int flags, char* filename){
     File* fd = (File*)malloc(sizeof(File));
-    snprintf(fd->filename, 63, "%s", filename);
+    snprintf(fd->filename, MAX_NAME, "%s", filename);
     fd->node = node;
     fd->flags = flags;
     fd->cursor_postion = 0;

@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "vfs_lite.h"
 
 // Return 64-bit FNV-1a hash for key (NUL-terminated). See description:
 // https://en.wikipedia.org/wiki/Fowler–Noll–Vo_hash_function
@@ -45,6 +46,16 @@ void ht_destroy(HT* table) {
     free(table);
 }
 
+void ht_print(HT* table){
+    for (int i = 0; i < table->capacity; i++) {
+        if(table->entries[i].key != NULL){
+            printf("HT Entry\n");
+            printf("Direntry Name: %s\n", table->entries[i].direntry->name);
+            printf("Direntry Node Size: %x\n", table->entries[i].direntry->node->file_size);
+        }
+    }
+}
+
 void* ht_get(HT* table, const char* key){
     uint64_t hash = hash_key(key);
     size_t index = hash % (uint64_t)table->capacity;
@@ -69,7 +80,7 @@ const char* ht_set(HT* table, const char* key, DirEntry* value){
 
     // handle expanding here if we run out of spaces
     if(table->length >= (0.80 * table->capacity)){
-        printf("expand");
+        printf("need to expand\n");
     }
 
     return ht_set_entry(table->entries, table->capacity, key, value, &table->length);

@@ -4,8 +4,9 @@
 #define MAX_OPEN_FILES 256
 #define MAX_MOUNTED_FILESYSTEMS 10
 #define MAX_DRIVERS 8
-#define MAX_NAME 255
+#define MAX_NAME 64
 #define MAX_FILES 255
+#define MAX_PATH 100
 
 #include <stddef.h>
 #include <fcntl.h>
@@ -78,7 +79,7 @@ typedef struct VFSSuperBlock {
 
 typedef struct File{
     unsigned long id;
-    char filename[64];
+    char filename[MAX_NAME];
     VFSInode* node;
     size_t cursor_postion; // offset to where we are pointing to. Can use this as ofset into blob and block num maybe
     unsigned long flags;
@@ -86,22 +87,21 @@ typedef struct File{
 
 typedef struct DirEntry {
     VFSInode* node;
-    DirEntry* parent;
+    //DirEntry* parent;
     char name[MAX_NAME];
-    DirEntryOps* d_op;
-    VFSSuperBlock* d_superblock;
-    void* d_fs_info;
+    //DirEntryOps* d_op;
+    //VFSSuperBlock* d_superblock;
 } DirEntry;
 
 // registered drivers on the system, hardcoded at this point
 typedef struct RegisteredDriver{
-    char name[16];
+    char name[MAX_NAME];
     unsigned long magic_bytes;
     struct FileSystemDriver* fsd;
 } RegisteredDriver;
 
 typedef struct MountedFileSystem {
-    char mount_path[64];                  // e.g. "/mnt/minifs"
+    char mount_path[MAX_PATH];                  // e.g. "/mnt/minifs"
     RegisteredDriver* driver;             // FS driver (minifs, cramfs, etc.)
     VFSInode* root_inode;
     VFSSuperBlock* super_block;
@@ -133,6 +133,8 @@ int vfs_close(File** fd);
 RegisteredDriver* get_driver(char* fs_name);
 VFSInode* get_inode_of_file(VFSInode* node, char* path, HT* hash_table);
 char* get_last_token(char* str, char delimiter);
+DirEntry* node_from_cache(char* key, HT* table);
+int build_direntry(HT* table, VFSInode* node, char* filename);
 
 /*
 For performance I want to implement a cache for inodes and filenames so

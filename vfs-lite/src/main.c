@@ -47,9 +47,38 @@ int main(){
 
     vfs_read(fd, buf, 10);
 
-    vfs_unmount("/mnt/cramfs/");
 
     File* fd2 = vfs_open("/mnt/cramfs/hello.txt", O_RDONLY);
+
+
+    if(fd2 == NULL){
+        printf("Fail to open file");
+        return -1;
+    }
+    
+
+    size_t ret2 = vfs_read(fd2, buf, 6);
+
+    for (int i = 0; i < ret2; i++) {
+        printf("char: %c \n", ((char*)buf)[i]);
+    }
+
+    File* fd3 = vfs_open("/mnt/cramfs/docs/readme.md", O_RDONLY);
+
+    if(fd3 == NULL){
+        printf("Fail to open file");
+        return -1;
+    }
+
+    size_t ret3 = vfs_read(fd3, buf, 6);
+
+    for (int i = 0; i < ret3; i++) {
+        printf("char: %c \n", ((char*)buf)[i]);
+    }
+
+    vfs_unmount("/mnt/cramfs/");
+
+    File* fd4 = vfs_open("/mnt/cramfs/docs/readme.md", O_RDONLY);
 
     // blockfs_register();
 

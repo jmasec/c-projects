@@ -28,6 +28,7 @@ void* ht_get(HT* table, const char* key);
 const char* ht_set(HT* table, const char* key, DirEntry* value);
 static const char* ht_set_entry(HTEntry* entries, size_t capacity,
     const char* key, DirEntry* value, size_t* plength);
+void ht_print(HT* table);
 
 
 #endif

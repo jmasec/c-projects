@@ -22,7 +22,7 @@ VFSInode* cramfs_lookup(VFSInode* node, const char* file);
 VFSSuperBlock* cramfs_mount(void* blob);
 VFSSuperBlock* cramfs_fill_super(void* blob);
 DirEntry* cramfs_make_direnty(void* blob, VFSInode* inode);
-// void cramfs_unmount(); // this needs to free all of the memory
+void cramfs_unmount(VFSSuperBlock* sb); // this needs to free all of the memory
 // FileSystemTreeNode* find_parent(FileSystemTreeNode* node, size_t id);
 // void print_tree(FileSystemTreeNode* node);
 static inline void read_and_advance(void* dest, size_t size, char** ptr);
@@ -34,7 +34,7 @@ File* cramfs_open(VFSInode* node, int flags, char* filename);
 static FileSystemDriver cramfs_fsd = {
     .mount = cramfs_mount,
     .fill_super = cramfs_fill_super,
-    .unmount = NULL,
+    .unmount = cramfs_unmount,
 };
 
 static VFSSuperOps cramfs_super_op = {

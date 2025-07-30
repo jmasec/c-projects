@@ -16,7 +16,7 @@ unsigned long fd_count = 0;
 // have to call extern func from drivers to send back the mount and unmount functions
 void vfs_register_driver(const char* name, unsigned long magic_num, struct FileSystemDriver* fsd) {
     if (driver_count < MAX_DRIVERS) {
-        snprintf(driver_table[driver_count].name, 15, "%s", name);
+        snprintf(driver_table[driver_count].name, MAX_NAME, "%s", name);
         driver_table[driver_count].fsd = fsd;
         driver_table[driver_count].magic_bytes = magic_num;
         driver_count++;
@@ -44,7 +44,7 @@ void vfs_mount(char* mount_path, char* filesystem_name, void* filesystem){
         for(int i = 0; i < MAX_MOUNTED_FILESYSTEMS; i++){
             if(mount_table[i].root_inode == NULL){
                 mount_table[mount_count].driver = reg_driver;
-                snprintf(mount_table[mount_count].mount_path, 63, "%s", mount_path);
+                snprintf(mount_table[mount_count].mount_path, MAX_PATH, "%s", mount_path);
                 mount_table[mount_count].root_inode = super_block->s_root->node;
                 mount_table[mount_count].super_block = super_block;
                 mount_table[mount_count].hash_table = table;
@@ -52,6 +52,7 @@ void vfs_mount(char* mount_path, char* filesystem_name, void* filesystem){
                 break;
             }
         }
+        //ht_print(table);
     }
 }
 
@@ -75,10 +76,10 @@ File* vfs_open(char* path, int flags){
         printf("[-] Filesystem is not mounted before trying to open!\n");
         return NULL;
     }
-    char* path_no_mnt;
+    char path_no_mnt[MAX_NAME];
     // not include the mnt path into the file path I am looking for once we know the fs
     char* file_path_ = mntpath_ptr + strlen(curr_filesystem->mount_path)-1;
-    snprintf(path_no_mnt, MAX_NAME, "%s", file_path_);
+    snprintf(&path_no_mnt, MAX_NAME, "%s", file_path_);
 
     printf("FILE PATH: %s\n", path_no_mnt);
 
@@ -160,7 +161,7 @@ void vfs_unmount(char* mount_path){
 
     filesystem_to_unmount->driver->fsd->unmount(filesystem_to_unmount->super_block);
 
-    clear_hashtable(filesystem_to_unmount->hash_table);
+    ht_destroy(filesystem_to_unmount->hash_table);
 
     memset(filesystem_to_unmount, 0, sizeof(MountedFileSystem));
     mount_count--;
@@ -184,20 +185,50 @@ VFSInode* get_inode_of_file(VFSInode* node, char* path, HT* hash_table){
     // and search using that inode closet to the end of the path
     char*token = strtok(path, "/");
     VFSInode* tmp_node = node;
+    //char* previous_token = NULL;
 
      while (token != NULL) {
         printf("Token: %s\n", token);
-        
-        tmp_node = tmp_node->i_op->lookup(tmp_node, token);
-        // build_direnty();
-        if(NULL == tmp_node){
-            return NULL;
-        }
 
+        DirEntry* cache_node = node_from_cache(token, hash_table);
+
+        if (NULL == cache_node){
+            tmp_node = tmp_node->i_op->lookup(tmp_node, token);
+            if(NULL == tmp_node){
+                return NULL;
+            }
+            if(build_direntry(hash_table, tmp_node, token) < 0){
+                printf("[-] Failed to build direntry\n");
+                return NULL;
+            } 
+            //previous_token = token;
+        }
+        else{
+            //previous_token = cache_node->name;
+            // we have the cached_node
+            printf("Got from cache\n");
+            tmp_node = cache_node->node;
+            
+        }
         token = strtok(NULL, "/");
     }
 
+    //ht_print(hash_table);
     return tmp_node;
+}
+
+DirEntry* node_from_cache(char* key, HT* table){
+    return (DirEntry*)ht_get(table, key);
+}
+
+int build_direntry(HT* table, VFSInode* node, char* filename){
+    DirEntry* new_direntry = malloc(sizeof(DirEntry));
+    snprintf(new_direntry->name, MAX_NAME, "%s", filename);
+    new_direntry->node = node;
+    if(!ht_set(table, filename, new_direntry)){
+        return -1;
+    }
+    return 0;
 }
 
 RegisteredDriver* get_driver(char* fs_name){
@@ -219,9 +250,5 @@ char* get_last_token(char* str, char delimiter) {
         // Delimiter not found, the whole string is the last token
         return str;
     }
-}
-
-void clear_hashtable(HT* hash_table){
-    return;
 }
 

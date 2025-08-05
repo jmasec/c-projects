@@ -1,23 +1,29 @@
-#define DRIVER_NAME "blockfs"
-#define MAGIC_NUM 0x4D465346 
+#define BLOCKFS_DRIVER_NAME "blockfs"
+#define MAGIC_BYTES 0x4D465346 
 #define BLOCK_SIZE 512
 #define FILENAME_MAX 28
 
 #define INODE_TYPE_FILE 1
 #define INODE_TYPE_DIR  2
 
-// extern void blockfs_register();
+#include <stdint.h>
+#include <sys/types.h>
+#include "vfs_lite.h"
+
+extern void blockfs_register();
 // VFSInode* blockfs_parse_disk(int);
-// VFSInode* blockfs_mount(int fd);
+VFSSuperBlock* blockfs_mount(void* fd);
+static inline void read_and_advance(void* dest, size_t size, char** ptr);
+VFSSuperBlock* blockfs_fill_super(int fd);
 
 static FileSystemDriver blockfs_fsd = {
-    .mount = NULL,
+    .mount = blockfs_mount,
     .fill_super = NULL,
     .unmount = NULL,
 };
 
 typedef struct BlockSuperblock {
-    uint32_t magic;
+    int magic;
     uint32_t total_blocks;
     uint32_t total_inodes;
     uint32_t block_size;
@@ -38,3 +44,4 @@ typedef struct BlockDirent {
     uint32_t inode_num;
     char name[FILENAME_MAX]; // null-terminated
 } BlockDirent;
+

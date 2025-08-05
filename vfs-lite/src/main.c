@@ -1,8 +1,12 @@
 #include <stdio.h>    
 #include <stdlib.h> 
 #include <string.h>
+#include <fcntl.h> 
+#include <unistd.h> 
+
 #include "vfs_lite.h"
 #include "cramfs.h"
+#include "blockfs.h"
 
 int main(){
     // this is where cramfs_register is called
@@ -80,12 +84,26 @@ int main(){
 
     File* fd4 = vfs_open("/mnt/cramfs/docs/readme.md", O_RDONLY);
 
-    // blockfs_register();
+    blockfs_register();
 
-    // printf("Just registered: %s\n", driver_table[driver_count - 1].name);
+    printf("Just registered: %s\n", driver_table[driver_count - 1].name);
 
-    // printf("Just registered magic: %x\n", driver_table[driver_count - 1].magic_bytes);
+    printf("Just registered magic: %x\n", driver_table[driver_count - 1].magic_bytes);
 
-    // printf("Mount Func: %x, %x\n", driver_table[driver_count - 1].fsd->mount, driver_table[driver_count - 1].fsd->unmount);
+    printf("Mount Func: %x, %x\n", driver_table[driver_count - 1].fsd->mount, driver_table[driver_count - 1].fsd->unmount);
+
+    int disk_fd;
+
+    const char* disk_image_path = "minifs_large.img";
+
+    // the fd would need to work different in an actual kernel implementation
+    disk_fd = open(disk_image_path, O_RDWR);
+
+    if(disk_fd == -1){
+        perror("Error opening disk image");
+        return -1;
+    }
+
+    vfs_mount("/mnt/blockfs/", BLOCKFS_DRIVER_NAME, &disk_fd);
 
 }

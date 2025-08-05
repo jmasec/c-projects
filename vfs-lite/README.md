@@ -167,3 +167,57 @@ See "readme.md" → inode 3
 Inode 3 → type = FILE, direct[0] = 31
 → read block 31 → "# Documentation"
 ```
+
+```
+Block 0: Superblock
+
+Magic number: 0x4D465346
+
+Block size: 512
+
+Total blocks: 9
+
+Inode table start: block 3
+
+Data block start: block 5
+
+Root inode: 0
+
+Block 1: Block bitmap (9 blocks used)
+
+Block 2: Inode bitmap (4 inodes used)
+
+Blocks 3-4: Inode table
+
+Inode 0: root directory /
+
+Inode 1: hello.txt (file, size=13 bytes)
+
+Inode 2: docs/ (directory)
+
+Inode 3: docs/readme.md (file, size=15 bytes)
+
+Block 5: Directory entries for /
+
+hello.txt → inode 1
+
+docs → inode 2
+
+Block 6: Directory entries for /docs
+
+readme.md → inode 3
+
+Block 7: "Hello, world!" (hello.txt data)
+
+Block 8: "# Documentation" (readme.md data)
+```
+
+```
+Block size: 512 bytes
+
+Total blocks: 20
+
+Used blocks: first 9 blocks are populated (same layout as before)
+
+Free space: 11 empty blocks available (blocks 9–19)
+```

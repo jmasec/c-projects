@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include <unistd.h>
 #include "vfs_lite.h"
 
 extern void blockfs_register();
@@ -32,6 +33,8 @@ typedef struct BlockSuperblock {
     uint32_t root_inode;         // inode number
     uint32_t inode_bitmap_start;
     uint32_t block_bitmap_start;
+    uint8_t* block_bitmap;
+    uint8_t* inode_bitmap;
 } BlockSuperblock;
 
 typedef struct BlockInode {

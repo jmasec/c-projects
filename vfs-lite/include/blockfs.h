@@ -4,7 +4,7 @@
 #define FILENAME_MAX 28
 
 #define INODE_TYPE_FILE 1
-#define INODE_TYPE_DIR  2
+#define INODE_TYPE_DIR  0
 
 #include <stdint.h>
 #include <sys/types.h>
@@ -12,7 +12,7 @@
 #include "vfs_lite.h"
 
 extern void blockfs_register();
-// VFSInode* blockfs_parse_disk(int);
+VFSInode* blockfs_get_root_inode(VFSSuperBlock* sb);
 VFSSuperBlock* blockfs_mount(void* fd);
 static inline void read_and_advance(void* dest, size_t size, char** ptr);
 VFSSuperBlock* blockfs_fill_super(int fd);
@@ -37,10 +37,25 @@ typedef struct BlockSuperblock {
     uint8_t* inode_bitmap;
 } BlockSuperblock;
 
+// typedef struct BlockInode {
+//     uint32_t type;       // File or directory
+//     uint32_t size;       // Size in bytes
+//     uint32_t direct[4];  // Block numbers for file/dir contents
+// } BlockInode;
+
+// typedef struct BlockInode{
+//     uint32_t id;              // Inode number
+//     uint8_t type;             // 0 = file, 1 = directory
+//     uint32_t size;            // File size or number of dirents
+//     uint32_t data_block;      // Points to data block OR dirent block
+// } BlockInode;
+
 typedef struct BlockInode {
-    uint32_t type;       // File or directory
-    uint32_t size;       // Size in bytes
-    uint32_t direct[4];  // Block numbers for file/dir contents
+    uint32_t id;
+    uint8_t type;              // 0 = file, 1 = dir
+    uint32_t size;             // size in bytes
+    uint32_t direct[4];        // direct block pointers
+    char name[32];             // filename (null-terminated)
 } BlockInode;
 
 typedef struct BlockDirent {

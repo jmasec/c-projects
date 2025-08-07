@@ -17,14 +17,36 @@ int is_block_used(uint8_t* bitmap, size_t block_number) {
 VFSSuperBlock* blockfs_mount(void* fd){
     int file_d = *(int*)fd;
     VFSSuperBlock* vfs_super_block = blockfs_fill_super(file_d);
+    VFSInode* vfs_inode = blockfs_get_root_inode(vfs_super_block);
 }
 
 DirEntry* blockfs_make_direntry(int fd, VFSInode* inode){
-
+    return NULL;
 }
 
 VFSInode* blockfs_get_root_inode(VFSSuperBlock* sb){
+    BlockSuperblock* block_sb = sb->s_fs_info;
 
+    uint32_t inode_block = block_sb->inode_table_start;
+
+    char inode_block_data[BLOCK_SIZE];
+
+    ssize_t read_bytes = pread(sb->s_src->fd, inode_block_data, sizeof(inode_block_data), BLOCK_SIZE*inode_block);
+
+    if(read_bytes == -1){
+        perror("Failed reading from disk");
+        //return NULL;
+        exit(EXIT_FAILURE);
+    }
+
+    BlockInode* root_inode = (BlockInode*)inode_block_data;
+
+    printf("Root inode: %x\n", root_inode->id);
+    printf("Root size: %i\n", root_inode->size);
+    printf("Root type: %x\n", root_inode->direct);
+    printf("Root data_block: %x\n", root_inode->name);
+
+    return NULL;
 }
 
 VFSSuperBlock* blockfs_fill_super(int fd){
@@ -33,7 +55,7 @@ VFSSuperBlock* blockfs_fill_super(int fd){
 
     char block0[BLOCK_SIZE];
 
-    ssize_t read_sb = read(fd, block0, sizeof(block0));
+    ssize_t read_sb = pread(fd, block0, sizeof(block0), 0);
 
     if(read_sb == -1){
         perror("Failed reading from disk");
@@ -62,7 +84,7 @@ VFSSuperBlock* blockfs_fill_super(int fd){
 
     char block1[BLOCK_SIZE];
 
-    ssize_t read_sb_1 = read(fd, block1, sizeof(block1));
+    ssize_t read_sb_1 = pread(fd, block1, sizeof(block1), (BLOCK_SIZE* block_sb->block_bitmap_start));
 
     char* ptr_block1 = block1;
 
@@ -73,11 +95,11 @@ VFSSuperBlock* blockfs_fill_super(int fd){
         is_block_used(block_sb->block_bitmap, i) ? "yes" : "no");
     }
 
-    printf("block bitmap: %x", *block_sb->block_bitmap);
+    printf("block bitmap: %x\n", *block_sb->block_bitmap);
 
     char block2[BLOCK_SIZE];
 
-    ssize_t read_sb_2 = read(fd, block2, sizeof(block2));
+    ssize_t read_sb_2 = pread(fd, block2, sizeof(block2), (BLOCK_SIZE* block_sb->inode_bitmap_start));
 
     char* ptr_block2 = block2;
 
@@ -88,7 +110,7 @@ VFSSuperBlock* blockfs_fill_super(int fd){
         is_block_used(block_sb->inode_bitmap, i) ? "yes" : "no");
     }
 
-    printf("inode bitmap: %x", *block_sb->inode_bitmap);
+    printf("inode bitmap: %x\n", *block_sb->inode_bitmap);
 
     vfs_sb->s_dirt = 0;
     vfs_sb->s_type = BLOCKFS_DRIVER_NAME;
@@ -98,6 +120,12 @@ VFSSuperBlock* blockfs_fill_super(int fd){
     fs->blob = NULL;
     fs->fd = fd;
     vfs_sb->s_src = fs;
+
+    vfs_sb->s_fs_info = block_sb;
+
+
+
+    return vfs_sb;
 
 }
 

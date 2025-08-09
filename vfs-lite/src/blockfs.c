@@ -18,14 +18,42 @@ VFSSuperBlock* blockfs_mount(void* fd){
     int file_d = *(int*)fd;
     VFSSuperBlock* vfs_super_block = blockfs_fill_super(file_d);
     VFSInode* vfs_inode = blockfs_get_root_inode(vfs_super_block);
+    DirEntry* vfs_direntry = blockfs_make_direntry(file_d, vfs_inode);
+    vfs_super_block->s_root = vfs_direntry;
+    return vfs_super_block;
 }
 
 DirEntry* blockfs_make_direntry(int fd, VFSInode* inode){
-    return NULL;
+    DirEntry* direntry = malloc(sizeof(DirEntry));
+    BlockInode* block_inode = (BlockInode*)inode->inode_info;
+
+    printf("Dirent %i\n", block_inode->direct[0]);
+
+    char dirent_block_data[BLOCK_SIZE];
+
+    ssize_t read_bytes = pread(fd, dirent_block_data, sizeof(dirent_block_data), BLOCK_SIZE*block_inode->direct[0]);
+
+    if(read_bytes == -1){
+        perror("Failed reading from disk");
+        //return NULL;
+        exit(EXIT_FAILURE);
+    }
+
+    BlockDirent* blockfs_dirent = (BlockDirent*)dirent_block_data;
+    direntry->node = inode;
+    printf("BLOCK NAME: %s\n", blockfs_dirent->name);
+    printf("Name length: %i\n", blockfs_dirent->name_len);
+    snprintf(direntry->name, 28, "%s", blockfs_dirent->name);
+
+    printf("DIR NAME: %s\n", direntry->name);
+    direntry->direntry_info = blockfs_dirent;
+    return direntry;
 }
 
 VFSInode* blockfs_get_root_inode(VFSSuperBlock* sb){
     BlockSuperblock* block_sb = sb->s_fs_info;
+
+    VFSInode* vfs_inode = malloc(sizeof(VFSInode));
 
     uint32_t inode_block = block_sb->inode_table_start;
 
@@ -41,12 +69,23 @@ VFSInode* blockfs_get_root_inode(VFSSuperBlock* sb){
 
     BlockInode* root_inode = (BlockInode*)inode_block_data;
 
-    printf("Root inode: %x\n", root_inode->id);
+    printf("Root id: %i\n", root_inode->id);
     printf("Root size: %i\n", root_inode->size);
-    printf("Root type: %x\n", root_inode->direct);
-    printf("Root data_block: %x\n", root_inode->name);
+    printf("Root type: %x\n", root_inode->type);
 
-    return NULL;
+    for(int i = 0; i < 4; i++){
+        printf("Dirent ptr %x\n", root_inode->direct[i]);
+    }
+
+    vfs_inode->file_type = root_inode->type;
+    vfs_inode->f_op = &blockfs_op;
+    vfs_inode->file_size = root_inode->size;
+    vfs_inode->inode_info = root_inode;
+    vfs_inode->inode_number = root_inode->id;
+    vfs_inode->sb = sb;
+    vfs_inode->timestamp = 0;
+
+    return vfs_inode;
 }
 
 VFSSuperBlock* blockfs_fill_super(int fd){

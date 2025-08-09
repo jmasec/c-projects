@@ -1,7 +1,7 @@
 #define BLOCKFS_DRIVER_NAME "blockfs"
 #define MAGIC_BYTES 0x4D465346 
 #define BLOCK_SIZE 512
-#define FILENAME_MAX 28
+#define FILENAME_MAX 124
 
 #define INODE_TYPE_FILE 1
 #define INODE_TYPE_DIR  0
@@ -16,11 +16,19 @@ VFSInode* blockfs_get_root_inode(VFSSuperBlock* sb);
 VFSSuperBlock* blockfs_mount(void* fd);
 static inline void read_and_advance(void* dest, size_t size, char** ptr);
 VFSSuperBlock* blockfs_fill_super(int fd);
+DirEntry* blockfs_make_direntry(int fd, VFSInode* inode);
 
 static FileSystemDriver blockfs_fsd = {
     .mount = blockfs_mount,
     .fill_super = NULL,
     .unmount = NULL,
+};
+
+static FileOps blockfs_op = {
+    .open = NULL,
+    .read = NULL,
+    .write = NULL,
+    .close = NULL
 };
 
 typedef struct BlockSuperblock {
@@ -37,11 +45,12 @@ typedef struct BlockSuperblock {
     uint8_t* inode_bitmap;
 } BlockSuperblock;
 
-// typedef struct BlockInode {
-//     uint32_t type;       // File or directory
-//     uint32_t size;       // Size in bytes
-//     uint32_t direct[4];  // Block numbers for file/dir contents
-// } BlockInode;
+typedef struct BlockInode {
+    uint32_t id; 
+    uint32_t type;       // File or directory
+    uint32_t size;       // Size in bytes
+    uint32_t direct[4];  // Block numbers for file/dir contents
+} BlockInode;
 
 // typedef struct BlockInode{
 //     uint32_t id;              // Inode number
@@ -50,16 +59,17 @@ typedef struct BlockSuperblock {
 //     uint32_t data_block;      // Points to data block OR dirent block
 // } BlockInode;
 
-typedef struct BlockInode {
-    uint32_t id;
-    uint8_t type;              // 0 = file, 1 = dir
-    uint32_t size;             // size in bytes
-    uint32_t direct[4];        // direct block pointers
-    char name[32];             // filename (null-terminated)
-} BlockInode;
+// typedef struct BlockInode {
+//     uint32_t id;
+//     uint8_t type;              // 0 = file, 1 = dir
+//     uint32_t size;             // size in bytes
+//     uint32_t direct[4];        // direct block pointers
+//     char name[32];             // filename (null-terminated)
+// } BlockInode;
 
 typedef struct BlockDirent {
     uint32_t inode_num;
-    char name[FILENAME_MAX]; // null-terminated
+    uint8_t  name_len;
+    char name[28]; // null-terminated
 } BlockDirent;
 

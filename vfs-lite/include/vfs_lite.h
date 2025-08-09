@@ -4,7 +4,7 @@
 #define MAX_OPEN_FILES 256
 #define MAX_MOUNTED_FILESYSTEMS 10
 #define MAX_DRIVERS 8
-#define MAX_NAME 64
+#define MAX_NAME 124
 #define MAX_FILES 255
 #define MAX_PATH 100
 
@@ -89,8 +89,10 @@ typedef struct DirEntry {
     VFSInode* node;
     //DirEntry* parent;
     char name[MAX_NAME];
+    void *direntry_info;
     //DirEntryOps* d_op;
     //VFSSuperBlock* d_superblock;
+    
 } DirEntry;
 
 // registered drivers on the system, hardcoded at this point

@@ -106,4 +106,10 @@ int main(){
 
     vfs_mount("/mnt/blockfs/", BLOCKFS_DRIVER_NAME, &disk_fd);
 
+    // File* block_file = vfs_open("/mnt/blockfs/docs/readme.md", O_RDONLY);
+
+    // if(block_file == NULL){
+    //     printf("Fail to open file");
+    //     return -1;
+    // }
 }

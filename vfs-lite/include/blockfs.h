@@ -13,10 +13,12 @@
 
 extern void blockfs_register();
 VFSInode* blockfs_get_root_inode(VFSSuperBlock* sb);
+int is_block_used(uint8_t* bitmap, size_t block_number);
 VFSSuperBlock* blockfs_mount(void* fd);
 static inline void read_and_advance(void* dest, size_t size, char** ptr);
 VFSSuperBlock* blockfs_fill_super(int fd);
 DirEntry* blockfs_make_direntry(int fd, VFSInode* inode);
+VFSInode* blockfs_lookup(VFSInode* node, const char* file);
 
 static FileSystemDriver blockfs_fsd = {
     .mount = blockfs_mount,
@@ -29,6 +31,10 @@ static FileOps blockfs_op = {
     .read = NULL,
     .write = NULL,
     .close = NULL
+};
+
+static InodeDirOps blockfs_dir_inode_op = {
+    .lookup = NULL,
 };
 
 typedef struct BlockSuperblock {
@@ -70,6 +76,6 @@ typedef struct BlockInode {
 typedef struct BlockDirent {
     uint32_t inode_num;
     uint8_t  name_len;
-    char name[28]; // null-terminated
+    char name[122]; // null-terminated
 } BlockDirent;
 

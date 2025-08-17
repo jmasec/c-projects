@@ -13,6 +13,50 @@ int is_block_used(uint8_t* bitmap, size_t block_number) {
     return (bitmap[byte_index] >> bit_offset) & 1;
 }
 
+// File* blockfs_open(VFSInode* node, int flags, char* filename){
+//     File* fd = (File*)malloc(sizeof(File));
+//     snprintf(fd->filename, MAX_NAME, "%s", filename);
+//     fd->node = node;
+//     fd->flags = flags;
+//     fd->cursor_postion = 0;
+
+//     return fd;
+// }
+
+// VFSInode* blockfs_lookup(VFSInode* node, const char* file){
+//     BlockInode* b_inode = (BlockInode*)node->inode_info;
+//     int fd = *(int*)node->sb->s_src->fd;
+//     int dirent_size = b_inode->size / sizeof(BlockDirent);
+//     char dirent_block_data[BLOCK_SIZE];
+//     ssize_t read_bytes = pread(fd, dirent_block_data, sizeof(dirent_block_data), BLOCK_SIZE*b_inode->direct[0]);
+
+//     if(node->file_type == INODE_TYPE_DIR){
+//         for(int i = 0; i < dirent_size; i++){
+//             BlockDirent* dirent = (BlockDirent*)(dirent_block_data);
+//             if(strcmp(dirent->name, file) == 0){
+//                 printf("Dirents %s\n",dirent->name);
+//                 printf("File %s\n",file);
+//                 // from the dirent block from the inode, we can loop through the block getting
+//                 // the inodes, then one that matches we read the inode in
+//                 return blockfs_make_vfsinode((BlockInode*)(dirent->inode_num), (VFSSuperBlock*)node->sb);
+//             }
+//             dirent += dirent_size;
+//         }
+//     }
+//     else if (node->file_type == INODE_TYPE_FILE){
+//         return node;
+//     }
+
+//     return NULL;
+// }
+
+// VFSInode* blockfs_make_vfsinode(BlockInode* inode, VFSSuperBlock* sb){
+//     VFSInode* vfs_inode = malloc(sizeof(VFSInode));
+
+
+//     return vfs_inode;
+// }
+
 
 VFSSuperBlock* blockfs_mount(void* fd){
     int file_d = *(int*)fd;
@@ -29,6 +73,8 @@ DirEntry* blockfs_make_direntry(int fd, VFSInode* inode){
 
     printf("Dirent %i\n", block_inode->direct[0]);
 
+    printf("SIZE OF DIRENT: %i\n", sizeof(BlockDirent));
+
     char dirent_block_data[BLOCK_SIZE];
 
     ssize_t read_bytes = pread(fd, dirent_block_data, sizeof(dirent_block_data), BLOCK_SIZE*block_inode->direct[0]);
@@ -42,8 +88,9 @@ DirEntry* blockfs_make_direntry(int fd, VFSInode* inode){
     BlockDirent* blockfs_dirent = (BlockDirent*)dirent_block_data;
     direntry->node = inode;
     printf("BLOCK NAME: %s\n", blockfs_dirent->name);
+    printf("Inode Num: %i\n", blockfs_dirent->inode_num);
     printf("Name length: %i\n", blockfs_dirent->name_len);
-    snprintf(direntry->name, 28, "%s", blockfs_dirent->name);
+    snprintf(direntry->name, 122, "%s", blockfs_dirent->name);
 
     printf("DIR NAME: %s\n", direntry->name);
     direntry->direntry_info = blockfs_dirent;
@@ -79,6 +126,7 @@ VFSInode* blockfs_get_root_inode(VFSSuperBlock* sb){
 
     vfs_inode->file_type = root_inode->type;
     vfs_inode->f_op = &blockfs_op;
+    vfs_inode->i_op = &blockfs_dir_inode_op;
     vfs_inode->file_size = root_inode->size;
     vfs_inode->inode_info = root_inode;
     vfs_inode->inode_number = root_inode->id;
